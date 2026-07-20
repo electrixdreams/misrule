@@ -1,18 +1,66 @@
 // @vitest-environment node
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import ashglass from "@/fixtures/ashglass-clocktower-v1/input.json";
-import { publicFixtureSchema } from "@/lib/contracts";
+import portable from "@/tests/fixtures/portable-two-book-world-pack.json";
+import { worldPackSchema } from "@/lib/world-pack";
 import { deterministicMockOutput } from "@/lib/mock-audit.server";
 import { AuditServiceError, MockAuditGateway, OpenAICompatibleAuditGateway, buildModelInput, executeLiveAudit, type AuditModelGateway } from "@/lib/audit-service.server";
 
-const request = { schemaVersion: "audit-api/v1" as const, fixtureId: "ashglass-clocktower-v1", clientRequestId: "service-test", intent: { mode: "live" as const } };
+const request = {
+  schemaVersion: "audit-api/v2" as const,
+  clientRequestId: "service-test",
+  source: { kind: "bundled" as const, packId: "ashglass-clocktower-v1" },
+  intent: { mode: "live" as const },
+};
+
+const portableOutput = {
+  schema_version: "model-output/v1" as const,
+  findings: [
+    {
+      kind: "contradiction" as const,
+      title: "Two tides follow one bell",
+      rule_ids: ["LAW-A"],
+      span_ids: ["NOTE-A", "NOTE-B"],
+      path_steps: [
+        { kind: "rule" as const, ref_id: "LAW-A", text: "Only one tide may enter." },
+        { kind: "span" as const, ref_id: "NOTE-A", text: "The white tide entered." },
+        { kind: "span" as const, ref_id: "NOTE-B", text: "The black tide entered." },
+      ],
+      explanation: "Both records place a different tide after the same bell.",
+      missing_fact: null,
+      why_unresolved: null,
+      supported_readings: [],
+    },
+    {
+      kind: "ambiguity" as const,
+      title: "Which bell governed the dusk entry?",
+      rule_ids: ["LAW-B"],
+      span_ids: ["NOTE-B"],
+      path_steps: [
+        { kind: "rule" as const, ref_id: "LAW-B", text: "The dusk bell rang once." },
+        { kind: "span" as const, ref_id: "NOTE-B", text: "The black tide entered after the same bell." },
+      ],
+      explanation: "The record does not identify which earlier bell it means.",
+      missing_fact: "Whether the referenced bell was the dusk bell.",
+      why_unresolved: "The source says only the same bell.",
+      supported_readings: [
+        { label: "Dusk bell", outcome: "contradiction_supported" as const, explanation: "The dusk rule controls the entry." },
+        { label: "Other bell", outcome: "contradiction_not_supported" as const, explanation: "The dusk rule does not control the entry." },
+      ],
+    },
+  ],
+  unresolved_questions: ["Which bell did NOTE-B reference?"],
+};
 
 describe("audit service", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("projects only public model input", () => {
-    const projected = buildModelInput(publicFixtureSchema.parse(ashglass));
+    const projected = buildModelInput(worldPackSchema.parse(ashglass));
     const serialized = JSON.stringify(projected);
     expect(serialized).not.toContain("RG-C01");
     expect(serialized).not.toContain("expected");
@@ -27,6 +75,70 @@ describe("audit service", () => {
     expect(response.audit.source.mode).toBe("mock");
     expect(response.audit.findings.map((finding) => finding.id)).toEqual(["finding-01", "finding-02"]);
     expect(response.audit.findings.map((finding) => finding.kind)).toEqual(["contradiction", "ambiguity"]);
+  });
+
+  it("runs a two-book non-RG inline pack through projection, validation, citations, and normalization", async () => {
+    const pack = worldPackSchema.parse(portable);
+    const response = await executeLiveAudit(
+      { ...request, clientRequestId: "portable-service", source: { kind: "inline", pack } },
+      { gateway: new MockAuditGateway(portableOutput) },
+    );
+    expect(response.audit).toMatchObject({ schemaVersion: "audit-api/v2", packId: "portable-world-v1", packVersion: "1.0.0" });
+    expect(response.audit.findings.map((finding) => finding.kind)).toEqual(["contradiction", "ambiguity"]);
+    expect(response.audit.findings[0].ruleRefs[0].id).toBe("LAW-A");
+    expect(response.audit.findings[0].spanRefs.map((reference) => reference.id)).toEqual(["NOTE-A", "NOTE-B"]);
+    expect(buildModelInput(pack).books.map((book) => book.bookId)).toEqual(["volume-dawn", "volume-dusk"]);
+  });
+
+  it("rejects invalid inline packs and unknown bundled packs before gateway invocation", async () => {
+    const pack = worldPackSchema.parse(portable);
+    const invalidPack = { ...pack, spans: [{ ...pack.spans[0], bookId: "missing" }, pack.spans[1]] };
+    const generate = vi.fn();
+    await expect(executeLiveAudit(
+      { ...request, source: { kind: "inline", pack: invalidPack } } as never,
+      { gateway: { generate } },
+    )).rejects.toMatchObject({ code: "WORLD_PACK_INVALID", status: 400 });
+    await expect(executeLiveAudit(
+      { ...request, source: { kind: "bundled", packId: "not-mounted" } },
+      { gateway: { generate } },
+    )).rejects.toMatchObject({ code: "WORLD_PACK_NOT_FOUND", status: 404 });
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it("rejects a valid but oversized inline pack before model invocation", async () => {
+    const pack = worldPackSchema.parse(portable);
+    const oversized = worldPackSchema.parse({
+      ...pack,
+      spans: Array.from({ length: 200 }, (_, index) => ({
+        ...pack.spans[index % pack.spans.length],
+        spanId: `OVERSIZED-${index}`,
+        displayOrder: index,
+        text: "x".repeat(4_000),
+      })),
+    });
+    const generate = vi.fn();
+    await expect(executeLiveAudit(
+      { ...request, source: { kind: "inline", pack: oversized } },
+      { gateway: { generate } },
+    )).rejects.toMatchObject({ code: "WORLD_PACK_TOO_LARGE", status: 413 });
+    expect(generate).not.toHaveBeenCalled();
+  });
+
+  it("never preserves inline author material but retains bundled synthetic evidence eligibility", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "misrule-world-pack-evidence-"));
+    try {
+      const pack = worldPackSchema.parse(portable);
+      await executeLiveAudit(
+        { ...request, source: { kind: "inline", pack } },
+        { gateway: new MockAuditGateway(portableOutput), evidenceDirectory: directory },
+      );
+      expect(await readdir(directory)).toEqual([]);
+
+      await executeLiveAudit(request, { gateway: new MockAuditGateway(), evidenceDirectory: directory });
+      expect(await readdir(directory)).toHaveLength(1);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   it("types malformed output before it reaches a client DTO", async () => {
@@ -72,7 +184,7 @@ describe("audit service", () => {
       credentialSource: "request",
     });
 
-    const generated = await gateway.generate(buildModelInput(publicFixtureSchema.parse(ashglass)));
+    const generated = await gateway.generate(buildModelInput(worldPackSchema.parse(ashglass)));
     expect(generated).toMatchObject({ provider: "openrouter", endpointHost: "openrouter.ai", requestedModel: "openai/gpt-oss-120b:free" });
     expect(String(fetchMock.mock.calls[0][0])).toBe("https://openrouter.ai/api/v1/chat/completions");
     const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
@@ -104,7 +216,7 @@ describe("audit service", () => {
       credentialSource: "request",
     });
 
-    await expect(gateway.generate(buildModelInput(publicFixtureSchema.parse(ashglass)))).resolves.toMatchObject({ output: "not-json" });
+    await expect(gateway.generate(buildModelInput(worldPackSchema.parse(ashglass)))).resolves.toMatchObject({ output: "not-json" });
   });
 
   it("types provider model or parameter rejection separately from outage", async () => {
@@ -121,7 +233,7 @@ describe("audit service", () => {
       credentialSource: "request",
     });
 
-    await expect(gateway.generate(buildModelInput(publicFixtureSchema.parse(ashglass)))).rejects.toMatchObject({
+    await expect(gateway.generate(buildModelInput(worldPackSchema.parse(ashglass)))).rejects.toMatchObject({
       code: "UPSTREAM_REQUEST_REJECTED",
       status: 422,
       retryable: false,

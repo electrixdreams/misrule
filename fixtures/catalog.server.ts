@@ -1,7 +1,7 @@
-export const fixtureCatalog = [
+export const worldPackCatalog = [
   {
-    fixtureId: "ashglass-clocktower-v1",
-    fixtureVersion: "1.0.0-c2",
+    packId: "ashglass-clocktower-v1",
+    packVersion: "1.0.0-c2",
     worldId: "world-ashglass",
     bookIds: ["book-ashglass-clocktower"],
     title: "The Ashglass Clocktower",

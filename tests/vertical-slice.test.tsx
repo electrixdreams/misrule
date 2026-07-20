@@ -1,7 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import ashglass from "@/fixtures/ashglass-clocktower-v1/input.json";
-import { publicFixtureSchema, type AuditSuccessResponse } from "@/lib/contracts";
+import type { AuditSuccessResponse } from "@/lib/contracts";
+import { worldPackSchema } from "@/lib/world-pack";
 import { MisruleApp } from "@/components/MisruleApp";
 
 const response: AuditSuccessResponse = {
@@ -9,10 +10,10 @@ const response: AuditSuccessResponse = {
   requestId: "browser-test",
   timing: { totalMs: 12 },
   audit: {
-    schemaVersion: "audit-api/v1",
+    schemaVersion: "audit-api/v2",
     auditId: "audit-test",
-    fixtureId: "ashglass-clocktower-v1",
-    fixtureVersion: "1.0.0-c2",
+    packId: "ashglass-clocktower-v1",
+    packVersion: "1.0.0-c2",
     createdAt: "2026-07-20T11:00:00.000Z",
     source: { mode: "mock", requestedModel: "deterministic-mock", model: "deterministic-mock" },
     unresolvedQuestions: ["Was the North Star reflected in the basin?"],
@@ -60,9 +61,9 @@ const response: AuditSuccessResponse = {
 describe("judge-visible vertical slice", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("renders the actual fixture, validated findings, citation jump/return, and ambiguity refusal", async () => {
+  it("renders the actual World Pack, validated findings, citation jump/return, and ambiguity refusal", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ json: async () => response }));
-    render(<MisruleApp fixture={publicFixtureSchema.parse(ashglass)} />);
+    render(<MisruleApp pack={worldPackSchema.parse(ashglass)} />);
 
     expect(screen.getAllByText("Find where the world turns against itself.")).toHaveLength(2);
     fireEvent.click(screen.getByRole("button", { name: "Open the Ashglass archive" }));
@@ -89,7 +90,7 @@ describe("judge-visible vertical slice", () => {
   });
 
   it("supports station shortcuts and arrow navigation", () => {
-    render(<MisruleApp fixture={publicFixtureSchema.parse(ashglass)} />);
+    render(<MisruleApp pack={worldPackSchema.parse(ashglass)} />);
     fireEvent.click(screen.getByRole("button", { name: "Open the Ashglass archive" }));
     fireEvent.keyDown(document, { key: "2", altKey: true });
     expect(screen.getByRole("heading", { name: "World Rules" })).toBeInTheDocument();
@@ -102,7 +103,7 @@ describe("judge-visible vertical slice", () => {
   it("keeps provider settings focus-contained and sends a session-only key", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ json: async () => response });
     vi.stubGlobal("fetch", fetchMock);
-    render(<MisruleApp fixture={publicFixtureSchema.parse(ashglass)} />);
+    render(<MisruleApp pack={worldPackSchema.parse(ashglass)} />);
     fireEvent.click(screen.getByRole("button", { name: "Open the Ashglass archive" }));
 
     const settingsButton = screen.getByRole("button", { name: /SettingsOpenRouter/ });
@@ -123,6 +124,11 @@ describe("judge-visible vertical slice", () => {
     fireEvent.click(screen.getByRole("button", { name: /Set the world in motion/ }));
     await screen.findByRole("button", { name: /The Dead Captain Returns in the Flesh/ });
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    expect(request).toMatchObject({
+      schemaVersion: "audit-api/v2",
+      source: { kind: "bundled", packId: "ashglass-clocktower-v1" },
+      intent: { mode: "live" },
+    });
     expect(request.runtime).toEqual({
       provider: "openrouter",
       apiEndpoint: "https://openrouter.ai/api/v1",
@@ -145,7 +151,7 @@ describe("judge-visible vertical slice", () => {
         },
       }),
     }));
-    render(<MisruleApp fixture={publicFixtureSchema.parse(ashglass)} />);
+    render(<MisruleApp pack={worldPackSchema.parse(ashglass)} />);
     fireEvent.click(screen.getByRole("button", { name: "Open the Ashglass archive" }));
     const auditButton = screen.getByRole("button", { name: /Set the world in motion/ });
     auditButton.focus();
@@ -166,10 +172,10 @@ describe("judge-visible vertical slice", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       json: async () => ({ ...response, audit: { ...response.audit, findings: [] } }),
     }));
-    render(<MisruleApp fixture={publicFixtureSchema.parse(ashglass)} auditMode="mock" />);
+    render(<MisruleApp pack={worldPackSchema.parse(ashglass)} auditMode="mock" />);
     fireEvent.click(screen.getByRole("button", { name: "Open the Ashglass archive" }));
     fireEvent.click(screen.getByRole("button", { name: /Set the world in motion/ }));
-    await screen.findByText("No findings accepted");
+    await screen.findByText("No audit findings");
     expect(screen.getByText("Deterministic mock · not live")).toBeInTheDocument();
     expect(screen.queryByText("Validated live response")).not.toBeInTheDocument();
   });

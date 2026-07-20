@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { deterministicMockOutput } from "@/lib/mock-audit.server";
-import { publicFixtureSchema } from "@/lib/contracts";
+import { worldPackSchema } from "@/lib/world-pack";
 import ashglass from "@/fixtures/ashglass-clocktower-v1/input.json";
 import { MockAuditGateway, executeLiveAudit } from "@/lib/audit-service.server";
 import { buildInstrumentViewModel } from "@/lib/presentation";
@@ -33,9 +33,9 @@ describe("Misrule reducer and presentation", () => {
   });
 
   it("derives closed and open topology from kind, never Ashglass IDs", async () => {
-    publicFixtureSchema.parse(ashglass);
+    worldPackSchema.parse(ashglass);
     const response = await executeLiveAudit(
-      { schemaVersion: "audit-api/v1", fixtureId: "ashglass-clocktower-v1", clientRequestId: "test-request", intent: { mode: "live" } },
+      { schemaVersion: "audit-api/v2", clientRequestId: "test-request", source: { kind: "bundled", packId: "ashglass-clocktower-v1" }, intent: { mode: "live" } },
       { gateway: new MockAuditGateway() },
     );
     let state = misruleReducer(initialMisruleState, { type: "AUDIT_SUCCEEDED", result: response.audit });

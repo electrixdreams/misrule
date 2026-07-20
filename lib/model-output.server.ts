@@ -1,7 +1,7 @@
 import "server-only";
 
 import { z } from "zod";
-import type { PublicFixture } from "@/lib/contracts";
+import type { WorldPack } from "@/lib/world-pack";
 
 const text = z.string().trim().min(1).max(4_000);
 const referenceId = z.string().trim().min(1).max(96);
@@ -126,10 +126,10 @@ function duplicates(values: string[]) {
   return values.filter((value, index) => values.indexOf(value) !== index);
 }
 
-export function validateModelOutputSemantics(output: ModelAuditOutput, fixture: PublicFixture): SemanticValidationIssue[] {
+export function validateModelOutputSemantics(output: ModelAuditOutput, pack: WorldPack): SemanticValidationIssue[] {
   const issues: SemanticValidationIssue[] = [];
-  const knownRules = new Set(fixture.rules.map((rule) => rule.ruleId));
-  const knownSpans = new Set(fixture.spans.map((span) => span.spanId));
+  const knownRules = new Set(pack.rules.map((rule) => rule.ruleId));
+  const knownSpans = new Set(pack.spans.map((span) => span.spanId));
 
   output.findings.forEach((finding, findingIndex) => {
     for (const duplicate of [...duplicates(finding.rule_ids), ...duplicates(finding.span_ids)]) {

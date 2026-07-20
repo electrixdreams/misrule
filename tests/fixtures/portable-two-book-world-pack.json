@@ -1,11 +1,10 @@
 {
-  "schemaVersion": "fixture/v1",
-  "fixtureId": "portable-world-v1",
-  "fixtureVersion": "1.0.0",
+  "schemaVersion": "world-pack/v1",
+  "packId": "portable-world-v1",
+  "packVersion": "1.0.0",
   "title": "Harbor of Hours",
-  "description": "A test-only fixture for generic portability.",
-  "synthetic": true,
-  "disclosure": "Test-only synthetic fixture.",
+  "description": "A test-only World Pack for generic portability.",
+  "disclosure": "Test-only synthetic World Pack.",
   "world": {
     "worldId": "world-hours",
     "slug": "hours",

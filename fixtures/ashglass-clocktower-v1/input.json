@@ -1,10 +1,9 @@
 {
-  "schemaVersion": "fixture/v1",
-  "fixtureId": "ashglass-clocktower-v1",
-  "fixtureVersion": "1.0.0-c2",
+  "schemaVersion": "world-pack/v1",
+  "packId": "ashglass-clocktower-v1",
+  "packVersion": "1.0.0-c2",
   "title": "The Ashglass Clocktower",
   "description": "A synthetic fictional-world archive built to test inspectable contradiction and ambiguity traces.",
-  "synthetic": true,
   "disclosure": "Synthetic demo fixture — not a real manuscript.",
   "world": {
     "worldId": "world-ashglass",

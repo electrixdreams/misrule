@@ -1,132 +1,8 @@
 import { z } from "zod";
+import { worldPackSchema } from "@/lib/world-pack";
 
 const id = z.string().trim().min(1).max(96);
 const nonEmpty = z.string().trim().min(1).max(4_000);
-
-export const ruleTypeSchema = z.enum(["fact", "constraint", "temporal", "conditional"]);
-
-const worldMetadataSchema = z
-  .object({
-    worldId: id,
-    slug: id,
-    title: nonEmpty,
-    premise: nonEmpty,
-    summary: nonEmpty,
-    tags: z.array(nonEmpty).max(12),
-  })
-  .strict();
-
-const bookMetadataSchema = z
-  .object({
-    bookId: id,
-    worldId: id,
-    slug: id,
-    title: nonEmpty,
-    sourceLabel: nonEmpty,
-    ordinal: z.number().int().nonnegative(),
-    summary: nonEmpty.optional(),
-  })
-  .strict();
-
-const ruleScopeSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("world"), worldId: id }).strict(),
-  z.object({ kind: z.literal("book"), bookId: id }).strict(),
-]);
-
-const worldRuleSchema = z
-  .object({
-    ruleId: id,
-    worldId: id,
-    scope: ruleScopeSchema,
-    type: ruleTypeSchema,
-    title: nonEmpty,
-    text: nonEmpty,
-    displayOrder: z.number().int().nonnegative(),
-  })
-  .strict();
-
-const narrativeSourceSchema = z
-  .object({
-    label: nonEmpty,
-    scene: nonEmpty,
-    chapter: nonEmpty.optional(),
-  })
-  .strict();
-
-const narrativeSpanSchema = z
-  .object({
-    spanId: id,
-    worldId: id,
-    bookId: id,
-    source: narrativeSourceSchema,
-    text: nonEmpty,
-    displayOrder: z.number().int().nonnegative(),
-  })
-  .strict();
-
-export const publicFixtureSchema = z
-  .object({
-    schemaVersion: z.literal("fixture/v1"),
-    fixtureId: id,
-    fixtureVersion: nonEmpty,
-    title: nonEmpty,
-    description: nonEmpty,
-    synthetic: z.boolean(),
-    disclosure: nonEmpty,
-    world: worldMetadataSchema,
-    books: z.array(bookMetadataSchema).min(1).max(12),
-    rules: z.array(worldRuleSchema).min(1).max(100),
-    spans: z.array(narrativeSpanSchema).min(1).max(250),
-  })
-  .strict();
-
-export type PublicFixture = z.infer<typeof publicFixtureSchema>;
-export type RuleType = z.infer<typeof ruleTypeSchema>;
-export type WorldRule = PublicFixture["rules"][number];
-export type NarrativeSpan = PublicFixture["spans"][number];
-
-export type FixtureValidationIssue = { path: string; message: string };
-
-export function validateFixture(fixture: PublicFixture): FixtureValidationIssue[] {
-  const issues: FixtureValidationIssue[] = [];
-  const worldId = fixture.world.worldId;
-  const bookIds = new Set(fixture.books.map((book) => book.bookId));
-  const seenBookIds = new Set<string>();
-  const ruleIds = new Set<string>();
-  const spanIds = new Set<string>();
-  const bookOrdinals = new Set<number>();
-  const ruleOrders = new Set<number>();
-  const spanOrders = new Set<number>();
-
-  for (const book of fixture.books) {
-    if (seenBookIds.has(book.bookId)) issues.push({ path: `books.${book.bookId}`, message: "Duplicate book ID." });
-    seenBookIds.add(book.bookId);
-    if (book.worldId !== worldId) issues.push({ path: `books.${book.bookId}`, message: "Book belongs to another world." });
-    if (bookOrdinals.has(book.ordinal)) issues.push({ path: `books.${book.bookId}.ordinal`, message: "Duplicate book ordinal." });
-    bookOrdinals.add(book.ordinal);
-  }
-
-  for (const rule of fixture.rules) {
-    if (ruleIds.has(rule.ruleId)) issues.push({ path: `rules.${rule.ruleId}`, message: "Duplicate rule ID." });
-    ruleIds.add(rule.ruleId);
-    if (rule.worldId !== worldId) issues.push({ path: `rules.${rule.ruleId}.worldId`, message: "Rule belongs to another world." });
-    if (rule.scope.kind === "world" && rule.scope.worldId !== worldId) issues.push({ path: `rules.${rule.ruleId}.scope`, message: "World-scoped rule references another world." });
-    if (rule.scope.kind === "book" && !bookIds.has(rule.scope.bookId)) issues.push({ path: `rules.${rule.ruleId}.scope`, message: "Book-scoped rule references an unknown book." });
-    if (ruleOrders.has(rule.displayOrder)) issues.push({ path: `rules.${rule.ruleId}.displayOrder`, message: "Duplicate rule display order." });
-    ruleOrders.add(rule.displayOrder);
-  }
-
-  for (const span of fixture.spans) {
-    if (spanIds.has(span.spanId)) issues.push({ path: `spans.${span.spanId}`, message: "Duplicate span ID." });
-    spanIds.add(span.spanId);
-    if (span.worldId !== worldId) issues.push({ path: `spans.${span.spanId}.worldId`, message: "Span belongs to another world." });
-    if (!bookIds.has(span.bookId)) issues.push({ path: `spans.${span.spanId}.bookId`, message: "Span references an unknown book." });
-    if (spanOrders.has(span.displayOrder)) issues.push({ path: `spans.${span.spanId}.displayOrder`, message: "Duplicate span display order." });
-    spanOrders.add(span.displayOrder);
-  }
-
-  return issues;
-}
 
 const sourceReferenceSchema = z.object({ id, label: nonEmpty }).strict();
 const traceStepDtoSchema = z
@@ -162,10 +38,10 @@ export const findingDtoSchema = z
 
 export const auditResultDtoSchema = z
   .object({
-    schemaVersion: z.literal("audit-api/v1"),
+    schemaVersion: z.literal("audit-api/v2"),
     auditId: id,
-    fixtureId: id,
-    fixtureVersion: nonEmpty,
+    packId: id,
+    packVersion: nonEmpty,
     createdAt: z.iso.datetime({ offset: true }),
     source: z.discriminatedUnion("mode", [
       z.object({ mode: z.literal("live"), requestedModel: nonEmpty, model: nonEmpty }).strict(),
@@ -213,11 +89,18 @@ export type AuditProvider = z.infer<typeof auditProviderSchema>;
 export type RuntimeSettings = z.infer<typeof runtimeSettingsSchema>;
 export type PublicRuntimeDefaults = z.infer<typeof publicRuntimeDefaultsSchema>;
 
+export const auditWorldPackSourceSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("bundled"), packId: id }).strict(),
+  z.object({ kind: z.literal("inline"), pack: worldPackSchema }).strict(),
+]);
+
+export type AuditWorldPackSource = z.infer<typeof auditWorldPackSourceSchema>;
+
 export const auditRequestSchema = z
   .object({
-    schemaVersion: z.literal("audit-api/v1"),
-    fixtureId: id,
+    schemaVersion: z.literal("audit-api/v2"),
     clientRequestId: id,
+    source: auditWorldPackSourceSchema,
     intent: z.discriminatedUnion("mode", [
       z.object({ mode: z.literal("live") }).strict(),
       z.object({ mode: z.literal("captured"), offerToken: nonEmpty }).strict(),
@@ -230,8 +113,10 @@ export type AuditRequest = z.infer<typeof auditRequestSchema>;
 
 export const auditErrorCodeSchema = z.enum([
   "INVALID_REQUEST",
-  "FIXTURE_NOT_FOUND",
-  "FIXTURE_INVALID",
+  "REQUEST_TOO_LARGE",
+  "WORLD_PACK_TOO_LARGE",
+  "WORLD_PACK_NOT_FOUND",
+  "WORLD_PACK_INVALID",
   "SERVICE_MISCONFIGURED",
   "UPSTREAM_AUTH_ERROR",
   "UPSTREAM_REQUEST_REJECTED",
@@ -283,3 +168,5 @@ export const auditErrorResponseSchema = z
 export type AuditSuccessResponse = z.infer<typeof auditSuccessResponseSchema>;
 export type AuditErrorResponse = z.infer<typeof auditErrorResponseSchema>;
 export type AuditResponse = AuditSuccessResponse | AuditErrorResponse;
+
+export type { NarrativeSpan, WorldPack, WorldRule } from "@/lib/world-pack";

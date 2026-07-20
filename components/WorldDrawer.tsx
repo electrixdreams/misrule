@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
-import type { PublicFixture } from "@/lib/contracts";
+import type { WorldPack } from "@/lib/world-pack";
 
-export function WorldDrawer({ fixture, open, onClose }: { fixture: PublicFixture; open: boolean; onClose: () => void }) {
+export function WorldDrawer({ pack, open, onClose }: { pack: WorldPack; open: boolean; onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -26,8 +26,8 @@ export function WorldDrawer({ fixture, open, onClose }: { fixture: PublicFixture
       >
         <p className="leaf-eyebrow">World archive</p>
         <h2 id="drawer-title">Mounted worlds</h2>
-        <p>One complete world is mounted. The empty position is a portability promise, not a fake fixture.</p>
-        <div className="archive-volume"><strong>{fixture.title}</strong><span>World archive I · mounted · {fixture.rules.length} rules · {fixture.spans.length} spans</span></div>
+        <p>One complete world is mounted. The empty position is a portability promise, not a fake World Pack.</p>
+        <div className="archive-volume"><strong>{pack.title}</strong><span>World archive I · bundled · {pack.rules.length} rules · {pack.spans.length} spans</span></div>
         <div className="empty-volume"><i aria-hidden="true" /><span><strong>No additional world mounted</strong>Second archive position intentionally empty.</span></div>
         <button ref={closeRef} type="button" onClick={onClose}>Return to instrument</button>
       </section>

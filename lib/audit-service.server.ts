@@ -5,12 +5,13 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
-import type { AuditRequest, AuditResultDto, AuditSuccessResponse, PublicFixture } from "@/lib/contracts";
+import type { AuditRequest, AuditResultDto, AuditSuccessResponse } from "@/lib/contracts";
 import { AuditServiceError } from "@/lib/audit-errors";
-import { FixtureRepositoryError, loadPublicFixture } from "@/lib/fixture-catalog.server";
+import { WorldPackRepositoryError, loadBundledWorldPack } from "@/lib/world-pack-catalog.server";
 import { deterministicMockOutput } from "@/lib/mock-audit.server";
 import { modelAuditOutputSchema, modelAuditTransportSchema, validateModelOutputSemantics, type ModelAuditOutput } from "@/lib/model-output.server";
 import { resolveRuntimeSettings, type ResolvedRuntimeSettings } from "@/lib/runtime-settings.server";
+import { MAX_WORLD_PACK_BYTES, serializedWorldPackByteLength, worldPackSchema, type WorldPack } from "@/lib/world-pack";
 
 export { AuditServiceError } from "@/lib/audit-errors";
 
@@ -18,8 +19,8 @@ export const PROMPT_VERSION = "misrule-audit/v2";
 export const MODEL_SCHEMA_VERSION = "model-output/v1";
 
 export type AuditModelInput = {
-  schemaVersion: "audit-input/v1";
-  fixture: { fixtureId: string; fixtureVersion: string };
+  schemaVersion: "audit-input/v2";
+  pack: { packId: string; packVersion: string };
   world: { worldId: string; title: string; premise: string };
   books: Array<{ bookId: string; title: string; sourceLabel: string }>;
   rules: Array<{ ruleId: string; type: string; scope: { kind: "world" | "book"; refId: string }; text: string }>;
@@ -39,15 +40,15 @@ export interface AuditModelGateway {
   generate(input: AuditModelInput): Promise<GatewayResult>;
 }
 
-export function buildModelInput(fixture: PublicFixture): AuditModelInput {
+export function buildModelInput(pack: WorldPack): AuditModelInput {
   return {
-    schemaVersion: "audit-input/v1",
-    fixture: { fixtureId: fixture.fixtureId, fixtureVersion: fixture.fixtureVersion },
-    world: { worldId: fixture.world.worldId, title: fixture.world.title, premise: fixture.world.premise },
-    books: [...fixture.books]
+    schemaVersion: "audit-input/v2",
+    pack: { packId: pack.packId, packVersion: pack.packVersion },
+    world: { worldId: pack.world.worldId, title: pack.world.title, premise: pack.world.premise },
+    books: [...pack.books]
       .sort((a, b) => a.ordinal - b.ordinal)
       .map((book) => ({ bookId: book.bookId, title: book.title, sourceLabel: book.sourceLabel })),
-    rules: [...fixture.rules]
+    rules: [...pack.rules]
       .sort((a, b) => a.displayOrder - b.displayOrder)
       .map((rule) => ({
         ruleId: rule.ruleId,
@@ -55,20 +56,20 @@ export function buildModelInput(fixture: PublicFixture): AuditModelInput {
         scope: rule.scope.kind === "world" ? { kind: "world" as const, refId: rule.scope.worldId } : { kind: "book" as const, refId: rule.scope.bookId },
         text: rule.text,
       })),
-    spans: [...fixture.spans]
+    spans: [...pack.spans]
       .sort((a, b) => a.displayOrder - b.displayOrder)
       .map((span) => ({ spanId: span.spanId, bookId: span.bookId, source: span.source, text: span.text })),
   };
 }
 
-function normalize(output: ModelAuditOutput, fixture: PublicFixture, gateway: GatewayResult): AuditResultDto {
-  const rules = new Map(fixture.rules.map((rule) => [rule.ruleId, rule]));
-  const spans = new Map(fixture.spans.map((span) => [span.spanId, span]));
+export function normalizeAudit(output: ModelAuditOutput, pack: WorldPack, gateway: GatewayResult): AuditResultDto {
+  const rules = new Map(pack.rules.map((rule) => [rule.ruleId, rule]));
+  const spans = new Map(pack.spans.map((span) => [span.spanId, span]));
   return {
-    schemaVersion: "audit-api/v1",
+    schemaVersion: "audit-api/v2",
     auditId: `audit-${randomUUID()}`,
-    fixtureId: fixture.fixtureId,
-    fixtureVersion: fixture.fixtureVersion,
+    packId: pack.packId,
+    packVersion: pack.packVersion,
     createdAt: new Date().toISOString(),
     source:
       gateway.requestedModel === "deterministic-mock"
@@ -174,14 +175,16 @@ export class OpenAICompatibleAuditGateway implements AuditModelGateway {
 }
 
 export class MockAuditGateway implements AuditModelGateway {
+  constructor(private readonly output: unknown = deterministicMockOutput) {}
+
   async generate(): Promise<GatewayResult> {
     return {
-      output: deterministicMockOutput,
+      output: this.output,
       provider: "deterministic-mock",
       endpointHost: "local",
       requestedModel: "deterministic-mock",
       returnedModel: "deterministic-mock",
-      rawResponse: { mode: "mock", output: deterministicMockOutput },
+      rawResponse: { mode: "mock", output: this.output },
     };
   }
 }
@@ -198,21 +201,34 @@ export async function executeLiveAudit(
   dependencies: { gateway: AuditModelGateway; evidenceDirectory?: string },
 ): Promise<AuditSuccessResponse> {
   if (request.intent.mode !== "live") throw new AuditServiceError("FALLBACK_UNAVAILABLE", "No captured audit is mounted for this checkpoint.", 503, false);
-  let fixture: PublicFixture;
-  try {
-    fixture = loadPublicFixture(request.fixtureId);
-  } catch (error) {
-    if (error instanceof FixtureRepositoryError) throw new AuditServiceError(error.code, error.message, error.code === "FIXTURE_NOT_FOUND" ? 404 : 500, false);
-    throw error;
+  let pack: WorldPack;
+  let evidenceEligible = false;
+  if (request.source.kind === "bundled") {
+    try {
+      pack = loadBundledWorldPack(request.source.packId);
+      evidenceEligible = true;
+    } catch (error) {
+      if (error instanceof WorldPackRepositoryError) {
+        throw new AuditServiceError(error.code, error.message, error.code === "WORLD_PACK_NOT_FOUND" ? 404 : 500, false);
+      }
+      throw error;
+    }
+  } else {
+    const parsed = worldPackSchema.safeParse(request.source.pack);
+    if (!parsed.success) throw new AuditServiceError("WORLD_PACK_INVALID", "The inline World Pack failed validation.", 400, false);
+    pack = parsed.data;
+    if (serializedWorldPackByteLength(pack) > MAX_WORLD_PACK_BYTES) {
+      throw new AuditServiceError("WORLD_PACK_TOO_LARGE", "The inline World Pack exceeds the allowed size.", 413, false);
+    }
   }
 
   const started = Date.now();
-  const input = buildModelInput(fixture);
+  const input = buildModelInput(pack);
   const gatewayResult = await dependencies.gateway.generate(input);
   const evidenceBase = {
     evidenceVersion: "misrule-route-proof/v1",
     clientRequestId: request.clientRequestId,
-    fixtureDigest: createHash("sha256").update(JSON.stringify(fixture)).digest("hex"),
+    packDigest: createHash("sha256").update(JSON.stringify(pack)).digest("hex"),
     promptVersion: PROMPT_VERSION,
     modelSchemaVersion: MODEL_SCHEMA_VERSION,
     provider: gatewayResult.provider,
@@ -224,7 +240,7 @@ export async function executeLiveAudit(
   };
   const shape = modelAuditOutputSchema.safeParse(gatewayResult.output);
   if (!shape.success) {
-    await preserveEvidence(dependencies.evidenceDirectory, {
+    await preserveEvidence(evidenceEligible ? dependencies.evidenceDirectory : undefined, {
       ...evidenceBase,
       normalizedAudit: null,
       validation: {
@@ -236,9 +252,9 @@ export async function executeLiveAudit(
     });
     throw new AuditServiceError("MALFORMED_OUTPUT", "The model output did not match the required audit structure.", 422, true);
   }
-  const semanticIssues = validateModelOutputSemantics(shape.data, fixture);
+  const semanticIssues = validateModelOutputSemantics(shape.data, pack);
   if (semanticIssues.length > 0) {
-    await preserveEvidence(dependencies.evidenceDirectory, {
+    await preserveEvidence(evidenceEligible ? dependencies.evidenceDirectory : undefined, {
       ...evidenceBase,
       normalizedAudit: null,
       validation: { shape: "PASS", semantics: "FAIL", issues: semanticIssues },
@@ -247,9 +263,9 @@ export async function executeLiveAudit(
     throw new AuditServiceError("INVALID_CITATIONS", "The model output contained invalid or incomplete evidence paths.", 422, true);
   }
 
-  const audit = normalize(shape.data, fixture, gatewayResult);
+  const audit = normalizeAudit(shape.data, pack, gatewayResult);
   const totalMs = Date.now() - started;
-  await preserveEvidence(dependencies.evidenceDirectory, {
+  await preserveEvidence(evidenceEligible ? dependencies.evidenceDirectory : undefined, {
     ...evidenceBase,
     normalizedAudit: audit,
     validation: { shape: "PASS", semantics: "PASS", issueCount: 0 },

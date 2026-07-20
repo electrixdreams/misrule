@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { getPublicRuntimeDefaults, resolveRuntimeSettings } from "@/lib/runtime-settings.server";
 
 const request = {
-  schemaVersion: "audit-api/v1" as const,
-  fixtureId: "ashglass-clocktower-v1",
+  schemaVersion: "audit-api/v2" as const,
+  source: { kind: "bundled" as const, packId: "ashglass-clocktower-v1" },
   clientRequestId: "runtime-test",
   intent: { mode: "live" as const },
 };

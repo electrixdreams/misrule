@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import type { PublicFixture, PublicRuntimeDefaults, RuntimeSettings } from "@/lib/contracts";
+import type { PublicRuntimeDefaults, RuntimeSettings } from "@/lib/contracts";
+import type { WorldPack } from "@/lib/world-pack";
 import { requestAudit } from "@/lib/audit-client";
 import { ArchiveLeaf } from "@/components/ArchiveLeaf";
 import { AuditFailureDialog } from "@/components/AuditFailureDialog";
@@ -22,7 +23,7 @@ import {
 } from "@/lib/misrule-state";
 
 export function MisruleApp({
-  fixture,
+  pack,
   runtimeDefaults = {
     provider: "openrouter",
     apiEndpoint: "https://openrouter.ai/api/v1",
@@ -32,7 +33,7 @@ export function MisruleApp({
   },
   auditMode = "live",
 }: {
-  fixture: PublicFixture;
+  pack: WorldPack;
   runtimeDefaults?: PublicRuntimeDefaults;
   auditMode?: "live" | "mock";
 }) {
@@ -62,7 +63,7 @@ export function MisruleApp({
     abortRef.current = controller;
     dispatch({ type: "AUDIT_REQUESTED" });
     try {
-      const response = await requestAudit(fixture.fixtureId, runtimeSettings, controller.signal);
+      const response = await requestAudit({ kind: "bundled", packId: pack.packId }, runtimeSettings, controller.signal);
       if (response.ok) dispatch({ type: "AUDIT_SUCCEEDED", result: response.audit });
       else dispatch({ type: "AUDIT_FAILED", error: response.error });
     } catch (error) {
@@ -72,7 +73,7 @@ export function MisruleApp({
         error: { code: "UPSTREAM_UNAVAILABLE", message: "The live audit service could not be reached.", retryable: true, fallbackOffer: null },
       });
     }
-  }, [fixture.fixtureId, runtimeSettings]);
+  }, [pack.packId, runtimeSettings]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -115,12 +116,12 @@ export function MisruleApp({
     auditStatus === "running"
       ? ["Auditing paths", "Indeterminate · awaiting a real response"]
       : auditStatus === "complete"
-        ? [`${state.audit.result.findings.length} findings accepted`, resultSourceStatus!]
+        ? [`${state.audit.result.findings.length} audit findings`, resultSourceStatus!]
         : auditStatus === "no_findings"
-          ? ["No findings accepted", resultSourceStatus!]
+          ? ["No audit findings", resultSourceStatus!]
           : auditStatus === "failed"
             ? ["Audit blocked", state.audit.error.code.replaceAll("_", " ").toLowerCase()]
-            : ["The world is still", auditMode === "mock" ? "Synthetic fixture · mock gateway disclosed" : "Live server route selected · access checked on request"];
+            : ["The world is still", auditMode === "mock" ? "Synthetic World Pack · mock gateway disclosed" : "Live server route selected · access checked on request"];
 
   function selectStation(station: StationId) {
     dispatch({ type: "STATION_SELECTED", station });
@@ -133,7 +134,7 @@ export function MisruleApp({
 
       <button className="world-seal" type="button" onClick={() => dispatch({ type: "DRAWER_OPENED" })} aria-haspopup="dialog">
         <i aria-hidden="true" />
-        <span><strong>Misrule</strong><small>Ashglass Clocktower<br />World archive I</small></span>
+        <span><strong>Misrule</strong><small>{pack.title}<br />World archive I</small></span>
       </button>
 
       <div className="status-plaque" data-state={instrument.auditStatus} role="status">
@@ -158,7 +159,7 @@ export function MisruleApp({
           onAudit={runAudit}
         />
         <ArchiveLeaf
-          fixture={fixture}
+          pack={pack}
           station={state.selectedStation}
           selectedSource={state.selectedSource}
           finding={finding}
@@ -186,17 +187,17 @@ export function MisruleApp({
         >
           <div className="entry-tower" aria-hidden="true" />
           <div>
-            <span>The Ashglass Clocktower · synthetic fixture</span>
+            <span>{pack.title} · bundled synthetic World Pack</span>
             <h2 id="entry-title">Misrule</h2>
             <p className="entry-tagline">Find where the world turns against itself.</p>
             <p>Enter a literary reasoning instrument: world rules, narrative evidence, closed contradictions, and the facts the record still withholds.</p>
-            <button ref={entryButtonRef} autoFocus type="button" onClick={() => dispatch({ type: "ENTRY_DISMISSED" })}>Open the Ashglass archive</button>
+            <button ref={entryButtonRef} autoFocus type="button" onClick={() => dispatch({ type: "ENTRY_DISMISSED" })}>Open the {pack.world.title} archive</button>
             <small>Inspectable fictional-world rule audit</small>
           </div>
         </section>
       ) : null}
 
-      <WorldDrawer fixture={fixture} open={state.drawerOpen} onClose={() => dispatch({ type: "DRAWER_CLOSED" })} />
+      <WorldDrawer pack={pack} open={state.drawerOpen} onClose={() => dispatch({ type: "DRAWER_CLOSED" })} />
       <RuntimeSettingsDialog
         open={settingsOpen}
         settings={runtimeSettings}

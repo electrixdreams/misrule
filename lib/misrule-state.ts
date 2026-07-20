@@ -98,12 +98,12 @@ export function misruleReducer(state: MisruleState, action: MisruleAction): Misr
         selectedFindingId: null,
         returnFindingId: null,
         audit: action.result.findings.length ? { status: "complete", result: action.result } : { status: "no_findings", result: action.result },
-        announcement: action.result.findings.length ? `Audit complete. ${action.result.findings.length} findings accepted.` : "Audit complete. No findings accepted.",
+        announcement: action.result.findings.length ? `Audit complete. ${action.result.findings.length} audit findings.` : "Audit complete. No audit findings.",
       };
     case "AUDIT_FAILED":
       return { ...state, audit: { status: "failed", error: action.error }, announcement: action.error.message };
     case "AUDIT_FAILURE_DISMISSED":
-      return { ...state, audit: { status: "idle" }, announcement: "Audit failure dismissed. No finding was accepted." };
+      return { ...state, audit: { status: "idle" }, announcement: "Audit failure dismissed. No audit finding was returned." };
   }
 }
 
