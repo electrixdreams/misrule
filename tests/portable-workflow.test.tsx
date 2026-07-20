@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ashglass from "@/fixtures/ashglass-clocktower-v1/input.json";
 import portable from "@/tests/fixtures/portable-two-book-world-pack.json";
-import type { AuditSuccessResponse } from "@/lib/contracts";
+import type { AuditErrorResponse, AuditSuccessResponse } from "@/lib/contracts";
 import { saveLocalWorldPack } from "@/lib/world-library.client";
 import { worldPackSchema, type WorldPack } from "@/lib/world-pack";
 import { MisruleApp } from "@/components/MisruleApp";
@@ -170,8 +170,9 @@ function deferredAuditMock() {
       }),
   );
   const respondOk = (pack: WorldPack) => resolveFetch({ json: async () => auditResponse(pack) });
+  const respondError = (error: AuditErrorResponse) => resolveFetch({ json: async () => error });
   const rejectWith = (error: Error) => rejectFetch(error);
-  return { fetchMock, respondOk, rejectWith };
+  return { fetchMock, respondOk, respondError, rejectWith };
 }
 
 describe("audit request-generation safety", () => {
@@ -247,5 +248,35 @@ describe("audit request-generation safety", () => {
     expect(await screen.findByRole("dialog", { name: "No partial finding was mounted." })).toBeInTheDocument();
     expect(screen.getAllByText("The audit service returned a result for another World Pack.").length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: /Two Tides After One Bell/ })).not.toBeInTheDocument();
+  });
+
+  it("ignores a stale typed ok:false error response from a superseded source", async () => {
+    const store = deferredAuditMock();
+    vi.stubGlobal("fetch", store.fetchMock);
+    const firstPack = portablePack;
+    const secondPack = { ...portablePack, packId: "portable-world-v2", packVersion: "2.0.0", title: "Harbor Revised" };
+    const { rerender } = render(<MisruleApp pack={firstPack} source={{ kind: "inline", pack: firstPack }} />);
+
+    openMountedArchive(/Open the Harbor of Hours archive/);
+    fireEvent.click(screen.getByRole("button", { name: /Set the world in motion/ }));
+
+    rerender(<MisruleApp pack={secondPack} source={{ kind: "inline", pack: secondPack }} />);
+    await act(async () => {
+      store.respondError({
+        ok: false,
+        requestId: "portable-test-error",
+        error: {
+          code: "MODEL_REFUSAL",
+          message: "The model declined to complete the audit.",
+          retryable: true,
+          fallbackOffer: null,
+        },
+      });
+    });
+
+    expect(screen.getByRole("button", { name: /Open the Harbor of Hours archive/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Two Tides After One Bell/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "No partial finding was mounted." })).not.toBeInTheDocument();
+    expect(screen.queryByText("The model declined to complete the audit.")).not.toBeInTheDocument();
   });
 });

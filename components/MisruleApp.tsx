@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { AuditWorldPackSource, PublicRuntimeDefaults, RuntimeSettings } from "@/lib/contracts";
 import type { WorldPack } from "@/lib/world-pack";
 import { requestAudit } from "@/lib/audit-client";
@@ -21,6 +21,14 @@ import {
   stations,
   type StationId,
 } from "@/lib/misrule-state";
+
+// Source-change invalidation must run in the commit lifecycle, before passive
+// effects, so a request that settles after React commits a new active source
+// cannot pass isCurrentRequest() against the now-stale generation/source key.
+// On the client this is useLayoutEffect (synchronous, pre-passive-effect);
+// during SSR (where effects never run) it downgrades to useEffect to avoid the
+// server warning. The mechanism is identical at runtime.
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 export function MisruleApp({
   pack,
@@ -108,7 +116,11 @@ export function MisruleApp({
     abortRef.current?.abort();
   }, []);
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
+    // Source-change order: invalidate the prior request generation, update the
+    // authoritative active source key, abort and clear the prior controller,
+    // then reset the world via the reducer. Runs before passive effects so a
+    // late completion cannot be mistaken for the current source.
     requestGenerationRef.current++;
     activeSourceKeyRef.current = sourceKey;
     abortRef.current?.abort();
