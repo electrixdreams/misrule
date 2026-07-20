@@ -20,6 +20,7 @@ import {
   CANDIDATE_SCHEMA_VERSION,
   MockAuditGateway,
   OpenAICompatibleAuditGateway,
+  AuditServiceError,
   buildModelInput,
   executeLiveAudit,
   type AuditModelGateway,
@@ -341,6 +342,49 @@ describe("12C evidence boundaries", () => {
     const message = (caught as { message: string }).message;
     expect(message).not.toContain("rawCandidateResponse");
     expect(message).not.toContain("candidate-output/v1");
+  });
+});
+
+describe("12C.1 inline failure evidence exclusion", () => {
+  it("writes no evidence file when an inline audit fails candidate validation", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "misrule-121-candidate-fail-"));
+    try {
+      // Malformed candidate transport reaches canonical validation and fails.
+      const { gateway } = makeGateway({ ...candidateOutput([PA]), surprise: true }, null);
+      await expect(
+        executeLiveAudit(inlineRequest("121-candidate-fail"), { gateway, evidenceDirectory: directory }),
+      ).rejects.toBeInstanceOf(AuditServiceError);
+      await expect(
+        executeLiveAudit(inlineRequest("121-candidate-fail"), { gateway, evidenceDirectory: directory }),
+      ).rejects.toMatchObject({ status: 422 });
+      // No evidence file (candidate or otherwise) is written anywhere under the directory.
+      expect(await readdir(directory)).toEqual([]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("writes no evidence file when an inline audit fails adjudication validation", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "misrule-121-adjudication-fail-"));
+    try {
+      // Valid candidate output, but the accepted finding expands beyond the
+      // candidate evidence so canonical adjudication validation fails closed.
+      const { gateway } = makeGateway(
+        candidateOutput([PA]),
+        adjudicationOutput([accept("candidate-01", { ...PA, rule_ids: ["LAW-A", "LAW-B"], path_steps: [...PA.path_steps, { kind: "rule" as const, ref_id: "LAW-B", text: "x" }] })]),
+      );
+      await expect(
+        executeLiveAudit(inlineRequest("121-adjudication-fail"), { gateway, evidenceDirectory: directory }),
+      ).rejects.toBeInstanceOf(AuditServiceError);
+      await expect(
+        executeLiveAudit(inlineRequest("121-adjudication-fail"), { gateway, evidenceDirectory: directory }),
+      ).rejects.toMatchObject({ code: "INVALID_CITATIONS", status: 422 });
+      // No candidate input, adjudication input, raw stage response, or
+      // validation artifact is persisted anywhere under the directory.
+      expect(await readdir(directory)).toEqual([]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });
 
