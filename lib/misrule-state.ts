@@ -41,7 +41,8 @@ export type MisruleAction =
   | { type: "AUDIT_REQUESTED" }
   | { type: "AUDIT_SUCCEEDED"; result: AuditResultDto }
   | { type: "AUDIT_FAILED"; error: AuditErrorResponse["error"] }
-  | { type: "AUDIT_FAILURE_DISMISSED" };
+  | { type: "AUDIT_FAILURE_DISMISSED" }
+  | { type: "ACTIVE_WORLD_CHANGED"; title: string };
 
 export const initialMisruleState: MisruleState = {
   entryOpen: true,
@@ -104,6 +105,18 @@ export function misruleReducer(state: MisruleState, action: MisruleAction): Misr
       return { ...state, audit: { status: "failed", error: action.error }, announcement: action.error.message };
     case "AUDIT_FAILURE_DISMISSED":
       return { ...state, audit: { status: "idle" }, announcement: "Audit failure dismissed. No audit finding was returned." };
+    case "ACTIVE_WORLD_CHANGED":
+      return {
+        ...state,
+        entryOpen: true,
+        selectedStation: "world",
+        selectedSource: null,
+        selectedFindingId: null,
+        returnFindingId: null,
+        drawerOpen: false,
+        audit: { status: "idle" },
+        announcement: `${action.title} mounted. World overview active.`,
+      };
   }
 }
 

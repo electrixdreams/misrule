@@ -1,10 +1,13 @@
 import { useRef } from "react";
 import { stations, type StationId } from "@/lib/misrule-state";
+import type { WorldPack } from "@/lib/world-pack";
 
 type Props = {
+  pack: WorldPack;
+  sourceLabel: string;
   selectedStation: StationId;
   handAngle: number;
-  auditStatus: "dormant" | "running" | "accepted" | "blocked";
+  auditStatus: "dormant" | "running" | "complete" | "blocked";
   topology: "none" | "closed" | "open";
   quieted: boolean;
   running: boolean;
@@ -29,8 +32,8 @@ export function ClockworkInstrument(props: Props) {
     <section className="instrument-stage" data-quieted={props.quieted || undefined} aria-label="Clockwork archive navigation">
       <div className="instrument" data-audit={props.auditStatus} data-topology={props.topology}>
         <svg className="instrument-svg" viewBox="0 0 700 700" role="img" aria-labelledby="clockwork-title clockwork-description">
-          <title id="clockwork-title">The Ashglass Clocktower as Misrule’s literary reasoning instrument</title>
-          <desc id="clockwork-description">Three rings show world navigation, audit state, and selected finding topology. One brass hand aligns to the selected station.</desc>
+          <title id="clockwork-title">{props.pack.title} as Misrule&apos;s literary reasoning instrument</title>
+          <desc id="clockwork-description">Three rings show world navigation, audit state, and selected finding topology for the active {props.sourceLabel.toLowerCase()}. One brass hand aligns to the selected station.</desc>
           <defs>
             <radialGradient id="misrule-glow"><stop offset="0" stopColor="#b8d9d6" stopOpacity=".15" /><stop offset="1" stopColor="#070a0b" stopOpacity="0" /></radialGradient>
             <linearGradient id="misrule-brass" x1="0" x2="1" y1="0" y2="1"><stop stopColor="#ead08c" /><stop offset=".45" stopColor="#6f4d2d" /><stop offset="1" stopColor="#c89550" /></linearGradient>
@@ -90,12 +93,12 @@ export function ClockworkInstrument(props: Props) {
           <small>Inspectable fictional-world rule audit</small>
           <h1>Misrule</h1>
           <p>Find where the world turns against itself.</p>
-          <span>{stations.find((station) => station.id === props.selectedStation)!.primary} · {stations.find((station) => station.id === props.selectedStation)!.secondary}</span>
+          <span>{props.pack.world.title} · {stations.find((station) => station.id === props.selectedStation)!.primary} · {stations.find((station) => station.id === props.selectedStation)!.secondary}</span>
         </div>
 
         <button className="wind-key" type="button" onClick={props.onAudit} disabled={props.running}>
           <span>{props.running ? "Auditing paths" : "Set the world in motion"}</span>
-          <small>{props.running ? "Indeterminate · awaiting one server response" : props.auditMode === "mock" ? "Deterministic mock gateway · not live" : "Live server-side rule audit"}</small>
+          <small>{props.running ? "Indeterminate · awaiting one server response" : props.auditMode === "mock" ? "Deterministic mock gateway · not live" : `Audit ${props.sourceLabel.toLowerCase()}`}</small>
         </button>
       </div>
     </section>

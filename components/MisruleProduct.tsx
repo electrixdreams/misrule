@@ -1,16 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import type { PublicRuntimeDefaults } from "@/lib/contracts";
+import type { AuditWorldPackSource, PublicRuntimeDefaults } from "@/lib/contracts";
 import type { WorldPack } from "@/lib/world-pack";
+import { WorldLibraryError, getLocalWorldPack } from "@/lib/world-library.client";
 import { MisruleApp } from "@/components/MisruleApp";
 import { WorldLibrary } from "@/components/world-library/WorldLibrary";
 import { WorldPackEditor } from "@/components/world-pack-editor/WorldPackEditor";
 
 type ProductView =
   | { kind: "library" }
-  | { kind: "clockwork"; packId: string }
+  | { kind: "clockwork"; source: { kind: "bundled"; packId: string } | { kind: "local"; packId: string } }
   | { kind: "editor"; mode: "create" | "edit"; packId?: string };
+
+function ProductLoadError({
+  title,
+  message,
+  onReturnToLibrary,
+}: {
+  title: string;
+  message: string;
+  onReturnToLibrary: () => void;
+}) {
+  return (
+    <main className="world-library">
+      <section className="library-section library-error" role="alert">
+        <p className="library-error-title">{title}</p>
+        <p>{message}</p>
+        <button type="button" onClick={onReturnToLibrary}>Return to World Library</button>
+      </section>
+    </main>
+  );
+}
 
 export function MisruleProduct({
   bundledPacks,
@@ -24,13 +45,56 @@ export function MisruleProduct({
   const [view, setView] = useState<ProductView>({ kind: "library" });
 
   if (view.kind === "clockwork") {
-    const pack = bundledPacks.find((candidate) => candidate.packId === view.packId) ?? bundledPacks[0];
+    let pack: WorldPack | null = null;
+    let source: AuditWorldPackSource | null = null;
+    if (view.source.kind === "bundled") {
+      pack = bundledPacks.find((candidate) => candidate.packId === view.source.packId) ?? null;
+      if (!pack) {
+        return (
+          <ProductLoadError
+            title="Bundled World Pack unavailable"
+            message="The selected bundled World Pack could not be opened."
+            onReturnToLibrary={() => setView({ kind: "library" })}
+          />
+        );
+      }
+      source = { kind: "bundled", packId: pack.packId };
+    } else {
+      try {
+        const entry = getLocalWorldPack(view.source.packId);
+        if (entry) {
+          pack = entry.pack;
+          source = { kind: "inline", pack: entry.pack };
+        }
+      } catch (error) {
+        return (
+          <ProductLoadError
+            title="Local World Pack unavailable"
+            message={error instanceof WorldLibraryError ? error.message : "Browser-local storage could not be read."}
+            onReturnToLibrary={() => setView({ kind: "library" })}
+          />
+        );
+      }
+      if (!pack || !source) {
+        return (
+          <ProductLoadError
+            title="Local World Pack unavailable"
+            message="This local World Pack is no longer in the World Library."
+            onReturnToLibrary={() => setView({ kind: "library" })}
+          />
+        );
+      }
+    }
+    const mountedPack = pack;
+    const auditSource = source;
     return (
       <MisruleApp
-        pack={pack}
+        pack={mountedPack}
+        source={auditSource}
         runtimeDefaults={runtimeDefaults}
         auditMode={auditMode}
         onReturnToLibrary={() => setView({ kind: "library" })}
+        onEdit={auditSource.kind === "inline" ? () => setView({ kind: "editor", mode: "edit", packId: mountedPack.packId }) : undefined}
       />
     );
   }
@@ -48,7 +112,8 @@ export function MisruleProduct({
   return (
     <WorldLibrary
       bundledPacks={bundledPacks}
-      onOpenBundled={(packId) => setView({ kind: "clockwork", packId })}
+      onOpenBundled={(packId) => setView({ kind: "clockwork", source: { kind: "bundled", packId } })}
+      onOpenLocal={(packId) => setView({ kind: "clockwork", source: { kind: "local", packId } })}
       onCreatePack={() => setView({ kind: "editor", mode: "create" })}
       onEditPack={(packId) => setView({ kind: "editor", mode: "edit", packId })}
     />

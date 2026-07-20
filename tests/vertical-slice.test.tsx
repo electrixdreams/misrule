@@ -57,13 +57,15 @@ const response: AuditSuccessResponse = {
     ],
   },
 };
+const ashglassPack = worldPackSchema.parse(ashglass);
+const ashglassSource = { kind: "bundled" as const, packId: ashglassPack.packId };
 
 describe("judge-visible vertical slice", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("renders the actual World Pack, validated findings, citation jump/return, and ambiguity refusal", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ json: async () => response }));
-    render(<MisruleApp pack={worldPackSchema.parse(ashglass)} />);
+    render(<MisruleApp pack={ashglassPack} source={ashglassSource} />);
 
     expect(screen.getAllByText("Find where the world turns against itself.")).toHaveLength(2);
     fireEvent.click(screen.getByRole("button", { name: "Open the Ashglass archive" }));
@@ -90,7 +92,7 @@ describe("judge-visible vertical slice", () => {
   });
 
   it("supports station shortcuts and arrow navigation", () => {
-    render(<MisruleApp pack={worldPackSchema.parse(ashglass)} />);
+    render(<MisruleApp pack={ashglassPack} source={ashglassSource} />);
     fireEvent.click(screen.getByRole("button", { name: "Open the Ashglass archive" }));
     fireEvent.keyDown(document, { key: "2", altKey: true });
     expect(screen.getByRole("heading", { name: "World Rules" })).toBeInTheDocument();
@@ -103,10 +105,10 @@ describe("judge-visible vertical slice", () => {
   it("keeps provider settings focus-contained and sends a session-only key", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ json: async () => response });
     vi.stubGlobal("fetch", fetchMock);
-    render(<MisruleApp pack={worldPackSchema.parse(ashglass)} />);
+    render(<MisruleApp pack={ashglassPack} source={ashglassSource} />);
     fireEvent.click(screen.getByRole("button", { name: "Open the Ashglass archive" }));
 
-    const settingsButton = screen.getByRole("button", { name: /SettingsOpenRouter/ });
+    const settingsButton = screen.getByRole("button", { name: /Model & privacyOpenRouter/ });
     settingsButton.focus();
     fireEvent.click(settingsButton);
     const dialog = screen.getByRole("dialog", { name: "Choose the reasoning provider." });
@@ -151,13 +153,13 @@ describe("judge-visible vertical slice", () => {
         },
       }),
     }));
-    render(<MisruleApp pack={worldPackSchema.parse(ashglass)} />);
+    render(<MisruleApp pack={ashglassPack} source={ashglassSource} />);
     fireEvent.click(screen.getByRole("button", { name: "Open the Ashglass archive" }));
     const auditButton = screen.getByRole("button", { name: /Set the world in motion/ });
     auditButton.focus();
     fireEvent.click(auditButton);
 
-    const dialog = await screen.findByRole("dialog", { name: "No partial finding was accepted." });
+    const dialog = await screen.findByRole("dialog", { name: "No partial finding was mounted." });
     const returnButton = screen.getByRole("button", { name: "Return to archive" });
     expect(dialog).toBeInTheDocument();
     expect(returnButton).toHaveFocus();
@@ -172,7 +174,7 @@ describe("judge-visible vertical slice", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       json: async () => ({ ...response, audit: { ...response.audit, findings: [] } }),
     }));
-    render(<MisruleApp pack={worldPackSchema.parse(ashglass)} auditMode="mock" />);
+    render(<MisruleApp pack={ashglassPack} source={ashglassSource} auditMode="mock" />);
     fireEvent.click(screen.getByRole("button", { name: "Open the Ashglass archive" }));
     fireEvent.click(screen.getByRole("button", { name: /Set the world in motion/ }));
     await screen.findByText("No audit findings");
@@ -182,7 +184,7 @@ describe("judge-visible vertical slice", () => {
 
   it("exposes a return-to-library control that fires the handler", () => {
     const onReturn = vi.fn();
-    render(<MisruleApp pack={worldPackSchema.parse(ashglass)} onReturnToLibrary={onReturn} />);
+    render(<MisruleApp pack={ashglassPack} source={ashglassSource} onReturnToLibrary={onReturn} />);
     fireEvent.click(screen.getByRole("button", { name: /Open the Ashglass archive/ }));
     const returnButton = screen.getByRole("button", { name: "Return to the World Library" });
     returnButton.focus();

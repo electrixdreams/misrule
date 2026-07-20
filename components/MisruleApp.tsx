@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import type { PublicRuntimeDefaults, RuntimeSettings } from "@/lib/contracts";
+import type { AuditWorldPackSource, PublicRuntimeDefaults, RuntimeSettings } from "@/lib/contracts";
 import type { WorldPack } from "@/lib/world-pack";
 import { requestAudit } from "@/lib/audit-client";
 import { ArchiveLeaf } from "@/components/ArchiveLeaf";
@@ -24,6 +24,7 @@ import {
 
 export function MisruleApp({
   pack,
+  source,
   runtimeDefaults = {
     provider: "openrouter",
     apiEndpoint: "https://openrouter.ai/api/v1",
@@ -33,11 +34,14 @@ export function MisruleApp({
   },
   auditMode = "live",
   onReturnToLibrary,
+  onEdit,
 }: {
   pack: WorldPack;
+  source: AuditWorldPackSource;
   runtimeDefaults?: PublicRuntimeDefaults;
   auditMode?: "live" | "mock";
   onReturnToLibrary?: () => void;
+  onEdit?: () => void;
 }) {
   const [state, dispatch] = useReducer(misruleReducer, initialMisruleState);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -47,10 +51,15 @@ export function MisruleApp({
     model: runtimeDefaults.model,
   });
   const abortRef = useRef<AbortController | null>(null);
+  const activeSourceKeyRef = useRef("");
   const auditReturnFocusRef = useRef<HTMLElement | null>(null);
   const entryButtonRef = useRef<HTMLButtonElement | null>(null);
   const result = selectAuditResult(state);
   const finding = selectFinding(state);
+  const sourceKey = source.kind === "bundled" ? `bundled:${source.packId}` : `inline:${source.pack.packId}:${source.pack.packVersion}`;
+  const sourceDisclosure = source.kind === "bundled"
+    ? { label: "Bundled sample", shortLabel: "Bundled archive", entry: "bundled synthetic World Pack" }
+    : { label: "Local World Pack", shortLabel: "Local archive", entry: "saved local World Pack" };
   const instrument = useMemo(
     () => buildInstrumentViewModel(state.selectedStation, state.audit, finding, isQuietedForReading(state)),
     [state, finding],
@@ -63,11 +72,23 @@ export function MisruleApp({
     }
     const controller = new AbortController();
     abortRef.current = controller;
+    const requestSourceKey = sourceKey;
+    const requestedPackId = pack.packId;
+    const requestedPackVersion = pack.packVersion;
     dispatch({ type: "AUDIT_REQUESTED" });
     try {
-      const response = await requestAudit({ kind: "bundled", packId: pack.packId }, runtimeSettings, controller.signal);
-      if (response.ok) dispatch({ type: "AUDIT_SUCCEEDED", result: response.audit });
-      else dispatch({ type: "AUDIT_FAILED", error: response.error });
+      const response = await requestAudit(source, runtimeSettings, controller.signal);
+      if (requestSourceKey !== activeSourceKeyRef.current) return;
+      if (response.ok) {
+        if (response.audit.packId !== requestedPackId || response.audit.packVersion !== requestedPackVersion) {
+          dispatch({
+            type: "AUDIT_FAILED",
+            error: { code: "INTERNAL_ERROR", message: "The audit service returned a result for another World Pack.", retryable: false, fallbackOffer: null },
+          });
+        } else {
+          dispatch({ type: "AUDIT_SUCCEEDED", result: response.audit });
+        }
+      } else dispatch({ type: "AUDIT_FAILED", error: response.error });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       dispatch({
@@ -75,9 +96,16 @@ export function MisruleApp({
         error: { code: "UPSTREAM_UNAVAILABLE", message: "The live audit service could not be reached.", retryable: true, fallbackOffer: null },
       });
     }
-  }, [pack.packId, runtimeSettings]);
+  }, [pack.packId, pack.packVersion, runtimeSettings, source, sourceKey]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  useEffect(() => {
+    activeSourceKeyRef.current = sourceKey;
+    abortRef.current?.abort();
+    abortRef.current = null;
+    dispatch({ type: "ACTIVE_WORLD_CHANGED", title: pack.title });
+  }, [pack.title, sourceKey]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -123,7 +151,7 @@ export function MisruleApp({
           ? ["No audit findings", resultSourceStatus!]
           : auditStatus === "failed"
             ? ["Audit blocked", state.audit.error.code.replaceAll("_", " ").toLowerCase()]
-            : ["The world is still", auditMode === "mock" ? "Synthetic World Pack · mock gateway disclosed" : "Live server route selected · access checked on request"];
+            : ["The world is still", auditMode === "mock" ? `${sourceDisclosure.label} · mock gateway disclosed` : `${sourceDisclosure.label} · access checked on request`];
 
   function selectStation(station: StationId) {
     dispatch({ type: "STATION_SELECTED", station });
@@ -134,9 +162,9 @@ export function MisruleApp({
     <main className="misrule-shell" data-quieted={instrument.quieted || undefined}>
       <a className="skip-link" href="#leaf-content">Skip to archive leaf</a>
 
-      <button className="world-seal" type="button" onClick={() => dispatch({ type: "DRAWER_OPENED" })} aria-haspopup="dialog">
+      <button className="world-seal" type="button" onClick={() => dispatch({ type: "DRAWER_OPENED" })} aria-haspopup="dialog" aria-label={`Open active world controls for ${pack.title}`}>
         <i aria-hidden="true" />
-        <span><strong>Misrule</strong><small>{pack.title}<br />World archive I</small></span>
+        <span><strong>Misrule</strong><small>{pack.title}<br />{sourceDisclosure.shortLabel}</small></span>
       </button>
 
       <div className="status-plaque" data-state={instrument.auditStatus} role="status">
@@ -144,7 +172,7 @@ export function MisruleApp({
       </div>
 
       <button className="settings-trigger" type="button" onClick={() => setSettingsOpen(true)} aria-haspopup="dialog">
-        <span>Settings</span>
+        <span>Model &amp; privacy</span>
         <small>{runtimeSettings.provider === "openrouter" ? "OpenRouter" : "Compatible API"} · {runtimeSettings.model}</small>
       </button>
 
@@ -163,11 +191,14 @@ export function MisruleApp({
           quieted={instrument.quieted}
           running={auditStatus === "running"}
           auditMode={auditMode}
+          pack={pack}
+          sourceLabel={sourceDisclosure.label}
           onStation={selectStation}
           onAudit={runAudit}
         />
         <ArchiveLeaf
           pack={pack}
+          source={source}
           station={state.selectedStation}
           selectedSource={state.selectedSource}
           finding={finding}
@@ -195,7 +226,7 @@ export function MisruleApp({
         >
           <div className="entry-tower" aria-hidden="true" />
           <div>
-            <span>{pack.title} · bundled synthetic World Pack</span>
+            <span>{pack.title} · {sourceDisclosure.entry}</span>
             <h2 id="entry-title">Misrule</h2>
             <p className="entry-tagline">Find where the world turns against itself.</p>
             <p>Enter a literary reasoning instrument: world rules, narrative evidence, closed contradictions, and the facts the record still withholds.</p>
@@ -205,7 +236,15 @@ export function MisruleApp({
         </section>
       ) : null}
 
-      <WorldDrawer pack={pack} open={state.drawerOpen} onClose={() => dispatch({ type: "DRAWER_CLOSED" })} />
+      <WorldDrawer
+        pack={pack}
+        source={source}
+        open={state.drawerOpen}
+        auditRunning={auditStatus === "running"}
+        onClose={() => dispatch({ type: "DRAWER_CLOSED" })}
+        onReturnToLibrary={onReturnToLibrary}
+        onEdit={onEdit}
+      />
       <RuntimeSettingsDialog
         open={settingsOpen}
         settings={runtimeSettings}

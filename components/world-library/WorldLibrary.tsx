@@ -41,11 +41,13 @@ function LibraryErrorState({
 export function WorldLibrary({
   bundledPacks,
   onOpenBundled,
+  onOpenLocal = () => undefined,
   onCreatePack = () => undefined,
   onEditPack = () => undefined,
 }: {
   bundledPacks: WorldPack[];
   onOpenBundled: (packId: string) => void;
+  onOpenLocal?: (packId: string) => void;
   onCreatePack?: () => void;
   onEditPack?: (packId: string) => void;
 }) {
@@ -175,6 +177,7 @@ export function WorldLibrary({
                 <p className="pack-desc">{entry.pack.description}</p>
                 <p className="pack-updated">Updated {entry.updatedAt}</p>
                 <div className="pack-actions">
+                  <button type="button" onClick={() => onOpenLocal(entry.pack.packId)}>Audit</button>
                   <button type="button" onClick={() => onEditPack(entry.pack.packId)}>Edit</button>
                   <button type="button" onClick={() => handleExport(entry.pack)}>Export</button>
                   <button type="button" onClick={() => setDeleteTarget(entry)}>Delete</button>

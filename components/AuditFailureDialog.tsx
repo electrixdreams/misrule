@@ -51,7 +51,7 @@ export function AuditFailureDialog({ error, returnFocusRef, onClose, onRetry }: 
         }}
       >
         <span>Audit blocked · {error.code}</span>
-        <h2 id="audit-failure-title">No partial finding was accepted.</h2>
+        <h2 id="audit-failure-title">No partial finding was mounted.</h2>
         <p id="audit-failure-description">{error.message}</p>
         <div>
           {error.retryable ? <button ref={primaryRef} type="button" onClick={onRetry}>Retry server audit</button> : null}

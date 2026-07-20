@@ -12,7 +12,7 @@ export function FindingTrace({ finding, onBack, onCitation }: Props) {
     <div className={`finding-trace finding-trace--${finding.kind}`}>
       <header className="leaf-header">
         <div>
-          <p className="leaf-eyebrow">Accepted finding · {finding.id}</p>
+          <p className="leaf-eyebrow">Audit finding · {finding.id}</p>
           <h2>{finding.title}</h2>
         </div>
         <span className="folio">{contradiction ? "Closed route" : "Open route"}</span>
