@@ -333,6 +333,30 @@ async function preserveEvidence(directory: string | undefined, evidence: Record<
   await writeFile(path.join(directory, filename), `${JSON.stringify(evidence, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
 }
 
+// Per-stage transport identity, recorded explicitly so staged bundled
+// evidence identifies both stages and their returned model metadata
+// independent of the underlying gateway's raw-response shape.
+function stageEvidenceBlock(candidate: GatewayStageResult, adjudication: GatewayStageResult | null) {
+  return {
+    stages: {
+      candidateGeneration: {
+        provider: candidate.provider,
+        endpointHost: candidate.endpointHost,
+        requestedModel: candidate.requestedModel,
+        returnedModel: candidate.returnedModel,
+      },
+      focusedAdjudication: adjudication
+        ? {
+            provider: adjudication.provider,
+            endpointHost: adjudication.endpointHost,
+            requestedModel: adjudication.requestedModel,
+            returnedModel: adjudication.returnedModel,
+          }
+        : null,
+    },
+  };
+}
+
 function validationErrorCode(issues: unknown[]) {
   const serialized = JSON.stringify(issues);
   return /UNKNOWN_|CITATION|TRACED|STEP_|READING|DUPLICATE_FINDING|ADDED_/.test(serialized) ? "INVALID_CITATIONS" : "MALFORMED_OUTPUT";
@@ -398,11 +422,20 @@ export async function executeLiveAudit(
     stageLatencyMs: { candidates: candidateStage.latencyMs, adjudication: null as number | null },
   };
 
+  let finalOutput: ModelAuditOutput;
+  let adjudicationInput: AuditAdjudicationInput | null = null;
+  let adjudicationStage: GatewayStageResult | null = null;
+  let acceptedCount = 0;
+  let rejectedCount = 0;
+  let rejectionReasons: string[] = [];
+  let adjudicationValidationEvidence: Record<string, unknown> = { status: "SKIPPED_ZERO_CANDIDATES" };
+
   const candidateValidation = validateCandidateOutput(candidateStage.output, pack);
   if (!candidateValidation.ok) {
     const code = validationErrorCode(candidateValidation.issues);
     await preserveEvidence(evidenceEligible ? dependencies.evidenceDirectory : undefined, {
       ...evidenceBase,
+      ...stageEvidenceBlock(candidateStage, adjudicationStage),
       canonicalCandidateValidation: { status: "FAIL", issues: candidateValidation.issues },
       adjudicationInput: null,
       rawAdjudicationResponse: null,
@@ -416,14 +449,6 @@ export async function executeLiveAudit(
     });
     throw new AuditServiceError(code, validationErrorMessage(code), 422, true);
   }
-
-  let finalOutput: ModelAuditOutput;
-  let adjudicationInput: AuditAdjudicationInput | null = null;
-  let adjudicationStage: GatewayStageResult | null = null;
-  let acceptedCount = 0;
-  let rejectedCount = 0;
-  let rejectionReasons: string[] = [];
-  let adjudicationValidationEvidence: Record<string, unknown> = { status: "SKIPPED_ZERO_CANDIDATES" };
 
   if (candidateValidation.candidates.length === 0) {
     finalOutput = modelOutputFromCandidates(candidateValidation.output);
@@ -440,6 +465,7 @@ export async function executeLiveAudit(
       const code = validationErrorCode(adjudicationValidation.issues);
       await preserveEvidence(evidenceEligible ? dependencies.evidenceDirectory : undefined, {
         ...evidenceBase,
+        ...stageEvidenceBlock(candidateStage, adjudicationStage),
         adjudicationInput,
         rawAdjudicationResponse: adjudicationStage.rawResponse,
         stageLatencyMs: { candidates: candidateStage.latencyMs, adjudication: adjudicationStage.latencyMs },
@@ -471,6 +497,7 @@ export async function executeLiveAudit(
     const code = validationErrorCode(finalValidation.issues);
     await preserveEvidence(evidenceEligible ? dependencies.evidenceDirectory : undefined, {
       ...evidenceBase,
+      ...stageEvidenceBlock(candidateStage, adjudicationStage),
       adjudicationInput,
       rawAdjudicationResponse: adjudicationStage?.rawResponse ?? null,
       stageLatencyMs: { candidates: candidateStage.latencyMs, adjudication: adjudicationStage?.latencyMs ?? null },
@@ -490,6 +517,7 @@ export async function executeLiveAudit(
   const totalMs = Date.now() - started;
   await preserveEvidence(evidenceEligible ? dependencies.evidenceDirectory : undefined, {
     ...evidenceBase,
+    ...stageEvidenceBlock(candidateStage, adjudicationStage),
     adjudicationInput,
     rawAdjudicationResponse: adjudicationStage?.rawResponse ?? null,
     stageLatencyMs: { candidates: candidateStage.latencyMs, adjudication: adjudicationStage?.latencyMs ?? null },
