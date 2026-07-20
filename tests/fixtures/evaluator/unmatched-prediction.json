@@ -1,0 +1,47 @@
+{
+  "ok": true,
+  "requestId": "req-unmatched",
+  "audit": {
+    "source": "live",
+    "findings": [
+      {
+        "id": "F-C01",
+        "kind": "contradiction",
+        "ruleRefs": [{ "id": "RG-R03", "label": "R03" }, { "id": "RG-R04", "label": "R04" }],
+        "spanRefs": [{ "id": "RG-S01", "label": "S01" }, { "id": "RG-S02", "label": "S02" }]
+      },
+      {
+        "id": "F-C02",
+        "kind": "contradiction",
+        "ruleRefs": [{ "id": "RG-R05", "label": "R05" }, { "id": "RG-R06", "label": "R06" }],
+        "spanRefs": [{ "id": "RG-S04", "label": "S04" }, { "id": "RG-S05", "label": "S05" }, { "id": "RG-S06", "label": "S06" }]
+      },
+      {
+        "id": "F-C03",
+        "kind": "contradiction",
+        "ruleRefs": [{ "id": "RG-R07", "label": "R07" }],
+        "spanRefs": [{ "id": "RG-S07", "label": "S07" }, { "id": "RG-S08", "label": "S08" }]
+      },
+      {
+        "id": "F-A01",
+        "kind": "ambiguity",
+        "ruleRefs": [{ "id": "RG-R09", "label": "R09" }],
+        "spanRefs": [{ "id": "RG-S09", "label": "S09" }, { "id": "RG-S10", "label": "S10" }],
+        "missingFact": "Whether the North Star appeared reflected in the seeing basin when Nera received the red vision."
+      },
+      {
+        "id": "F-A02",
+        "kind": "ambiguity",
+        "ruleRefs": [{ "id": "RG-R02", "label": "R02" }],
+        "spanRefs": [{ "id": "RG-S11", "label": "S11" }, { "id": "RG-S12", "label": "S12" }, { "id": "RG-S17", "label": "S17" }],
+        "missingFact": "Whether the silver-masked figure was a living person at the time it crossed the Mirror Gate."
+      },
+      {
+        "id": "F-UNMATCHED",
+        "kind": "contradiction",
+        "ruleRefs": [{ "id": "RG-R99", "label": "R99" }],
+        "spanRefs": [{ "id": "RG-S99", "label": "S99" }]
+      }
+    ]
+  }
+}

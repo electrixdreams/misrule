@@ -1,0 +1,10 @@
+{
+  "ok": false,
+  "requestId": "req-malformed",
+  "error": {
+    "code": "INTERNAL_ERROR",
+    "message": "The audit could not be completed.",
+    "retryable": false,
+    "fallbackOffer": null
+  }
+}
