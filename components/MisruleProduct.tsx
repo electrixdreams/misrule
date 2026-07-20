@@ -5,10 +5,12 @@ import type { PublicRuntimeDefaults } from "@/lib/contracts";
 import type { WorldPack } from "@/lib/world-pack";
 import { MisruleApp } from "@/components/MisruleApp";
 import { WorldLibrary } from "@/components/world-library/WorldLibrary";
+import { WorldPackEditor } from "@/components/world-pack-editor/WorldPackEditor";
 
 type ProductView =
   | { kind: "library" }
-  | { kind: "clockwork"; packId: string };
+  | { kind: "clockwork"; packId: string }
+  | { kind: "editor"; mode: "create" | "edit"; packId?: string };
 
 export function MisruleProduct({
   bundledPacks,
@@ -33,10 +35,22 @@ export function MisruleProduct({
     );
   }
 
+  if (view.kind === "editor") {
+    return (
+      <WorldPackEditor
+        mode={view.mode}
+        packId={view.packId}
+        onReturnToLibrary={() => setView({ kind: "library" })}
+      />
+    );
+  }
+
   return (
     <WorldLibrary
       bundledPacks={bundledPacks}
       onOpenBundled={(packId) => setView({ kind: "clockwork", packId })}
+      onCreatePack={() => setView({ kind: "editor", mode: "create" })}
+      onEditPack={(packId) => setView({ kind: "editor", mode: "edit", packId })}
     />
   );
 }

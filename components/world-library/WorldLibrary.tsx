@@ -41,9 +41,13 @@ function LibraryErrorState({
 export function WorldLibrary({
   bundledPacks,
   onOpenBundled,
+  onCreatePack = () => undefined,
+  onEditPack = () => undefined,
 }: {
   bundledPacks: WorldPack[];
   onOpenBundled: (packId: string) => void;
+  onCreatePack?: () => void;
+  onEditPack?: (packId: string) => void;
 }) {
   const [entries, setEntries] = useState<WorldLibraryEntry[]>([]);
   const [libraryError, setLibraryError] = useState<{ code: WorldLibraryErrorCode; message: string } | null>(null);
@@ -144,7 +148,10 @@ export function WorldLibrary({
       <section aria-labelledby="local-heading" className="library-section">
         <div className="library-section-head">
           <h2 id="local-heading">Your local World Packs</h2>
-          <button type="button" onClick={() => setImportOpen(true)}>Import World Pack</button>
+          <div className="library-section-actions">
+            <button type="button" onClick={onCreatePack}>Create World Pack</button>
+            <button type="button" onClick={() => setImportOpen(true)}>Import World Pack</button>
+          </div>
         </div>
 
         {exportError ? <p role="alert" className="library-error-line">{exportError}</p> : null}
@@ -168,6 +175,7 @@ export function WorldLibrary({
                 <p className="pack-desc">{entry.pack.description}</p>
                 <p className="pack-updated">Updated {entry.updatedAt}</p>
                 <div className="pack-actions">
+                  <button type="button" onClick={() => onEditPack(entry.pack.packId)}>Edit</button>
                   <button type="button" onClick={() => handleExport(entry.pack)}>Export</button>
                   <button type="button" onClick={() => setDeleteTarget(entry)}>Delete</button>
                 </div>

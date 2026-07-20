@@ -7,6 +7,7 @@ export function ConfirmWorldPackAction({
   open,
   title,
   message,
+  cancelLabel = "Cancel",
   confirmLabel,
   tone = "default",
   onConfirm,
@@ -15,6 +16,7 @@ export function ConfirmWorldPackAction({
   open: boolean;
   title: string;
   message: string;
+  cancelLabel?: string;
   confirmLabel: string;
   tone?: "default" | "danger";
   onConfirm: () => void;
@@ -46,7 +48,7 @@ export function ConfirmWorldPackAction({
         <h2 id="confirm-title">{title}</h2>
         <p id="confirm-message">{message}</p>
         <div className="confirm-actions">
-          <button type="button" onClick={onCancel}>Cancel</button>
+          <button type="button" onClick={onCancel}>{cancelLabel}</button>
           <button type="button" className="confirm-primary" onClick={onConfirm}>{confirmLabel}</button>
         </div>
       </section>
