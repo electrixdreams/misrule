@@ -38,15 +38,16 @@ function isSubsetOf(subset, superset) {
   return subset.every((value) => superset.includes(value));
 }
 
-// A prediction is a proper subset/superset of a case when both its rule and
-// span sets are contained/containing and at least one dimension is strictly
-// smaller (the exact-equality case is handled by the exact categories above).
+// A prediction is a proper subset of a case when both its rule and span sets
+// are contained in the case AND at least one dimension is strictly smaller
+// (not both equal). Exact equality in both dimensions is handled by the exact
+// categories above and never reaches this branch.
 function isProperSubset(ruleA, spanA, ruleB, spanB) {
-  return isSubsetOf(ruleA, ruleB) && isSubsetOf(spanA, spanB) && !sameIds(ruleA, ruleB) && !sameIds(spanA, spanB);
+  return isSubsetOf(ruleA, ruleB) && isSubsetOf(spanA, spanB) && (!sameIds(ruleA, ruleB) || !sameIds(spanA, spanB));
 }
 
 function isProperSuperset(ruleA, spanA, ruleB, spanB) {
-  return isSubsetOf(ruleB, ruleA) && isSubsetOf(spanB, spanA) && !sameIds(ruleA, ruleB) && !sameIds(spanA, spanB);
+  return isSubsetOf(ruleB, ruleA) && isSubsetOf(spanB, spanA) && (!sameIds(ruleA, ruleB) || !sameIds(spanA, spanB));
 }
 
 function partialOverlap(ruleA, spanA, ruleB, spanB) {

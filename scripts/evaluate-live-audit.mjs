@@ -4,14 +4,24 @@ import { readFileSync } from "node:fs";
 import { evaluate } from "./lib/evaluate-audit.mjs";
 
 const args = process.argv.slice(2);
-const gateMode = args.includes("--gate");
-const positional = args.filter((arg) => arg !== "--gate");
-const [responsePath, groundTruthPath] = positional;
+const usage = "Usage: node scripts/evaluate-live-audit.mjs [--gate] <route-response.json> <ground-truth.server.json>";
 
-if (!responsePath || !groundTruthPath) {
-  console.error("Usage: node scripts/evaluate-live-audit.mjs [--gate] <route-response.json> <ground-truth.server.json>");
+const gateCount = args.filter((arg) => arg === "--gate").length;
+const positionals = args.filter((arg) => arg !== "--gate");
+const invalidFlags = positionals.filter((arg) => arg.startsWith("--"));
+
+// Supported shapes (exactly):
+//   node scripts/evaluate-live-audit.mjs <route-response.json> <ground-truth.server.json>
+//   node scripts/evaluate-live-audit.mjs --gate <route-response.json> <ground-truth.server.json>
+// Everything else (extra positionals, unknown flags, duplicate --gate, --gate
+// without exactly two paths) is invalid usage and exits 2.
+if (gateCount > 1 || invalidFlags.length > 0 || positionals.length !== 2) {
+  console.error(usage);
   process.exit(2);
 }
+
+const [responsePath, groundTruthPath] = positionals;
+const gateMode = gateCount === 1;
 
 let response;
 let groundTruth;

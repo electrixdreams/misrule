@@ -215,6 +215,129 @@ describe("evaluate (v2) — determinism", () => {
   });
 });
 
+describe("evaluate (v2) — relation completeness (Brief 12A.1)", () => {
+  function minimalResponse(findings: unknown[]) {
+    return { ok: true, requestId: "req-min", audit: { source: "live", findings } };
+  }
+
+  function minimalGroundTruth(cases: unknown[]) {
+    return { schemaVersion: "ground-truth/v1", fixtureId: "min", fixtureVersion: "1.0.0", cases };
+  }
+
+  function finding(id: string, kind: string, ruleIds: string[], spanIds: string[]) {
+    return {
+      id,
+      kind,
+      ruleRefs: ruleIds.map((ruleId) => ({ id: ruleId })),
+      spanRefs: spanIds.map((spanId) => ({ id: spanId })),
+    };
+  }
+
+  // Single positive case used across the subset/superset tests.
+  const caseC1 = { caseId: "C1", expected: "contradiction", ruleIds: ["R1", "R2"], spanIds: ["S1", "S2"] };
+
+  it("positive_subset: exact rule set + strict span subset (one dimension strict)", () => {
+    const result = evaluate({
+      response: minimalResponse([finding("P1", "contradiction", ["R1", "R2"], ["S1"])]),
+      groundTruth: minimalGroundTruth([caseC1]),
+    });
+    const diagnostic = result.predictionDiagnostics.find((item) => item.findingId === "P1");
+    expect(diagnostic?.classification).toBe("positive_subset");
+    expect(diagnostic?.relatedCaseId).toBe("C1");
+  });
+
+  it("positive_subset: strict rule subset + exact span set (one dimension strict)", () => {
+    const result = evaluate({
+      response: minimalResponse([finding("P1", "contradiction", ["R1"], ["S1", "S2"])]),
+      groundTruth: minimalGroundTruth([caseC1]),
+    });
+    const diagnostic = result.predictionDiagnostics.find((item) => item.findingId === "P1");
+    expect(diagnostic?.classification).toBe("positive_subset");
+    expect(diagnostic?.relatedCaseId).toBe("C1");
+  });
+
+  it("positive_subset: strict rule subset + strict span subset (both dimensions strict)", () => {
+    const result = evaluate({
+      response: minimalResponse([finding("P1", "contradiction", ["R1"], ["S1"])]),
+      groundTruth: minimalGroundTruth([caseC1]),
+    });
+    const diagnostic = result.predictionDiagnostics.find((item) => item.findingId === "P1");
+    expect(diagnostic?.classification).toBe("positive_subset");
+    expect(diagnostic?.relatedCaseId).toBe("C1");
+  });
+
+  it("exact rule/span equality is not classified as a subset", () => {
+    const result = evaluate({
+      response: minimalResponse([finding("P1", "contradiction", ["R1", "R2"], ["S1", "S2"])]),
+      groundTruth: minimalGroundTruth([caseC1]),
+    });
+    const diagnostic = result.predictionDiagnostics.find((item) => item.findingId === "P1");
+    expect(diagnostic?.classification).toBe("exact_positive");
+    expect(diagnostic?.relatedCaseId).toBe("C1");
+  });
+
+  it("positive_superset: exact rule set + strict span superset (one dimension strict)", () => {
+    const result = evaluate({
+      response: minimalResponse([finding("P1", "contradiction", ["R1", "R2"], ["S1", "S2", "S3"])]),
+      groundTruth: minimalGroundTruth([caseC1]),
+    });
+    const diagnostic = result.predictionDiagnostics.find((item) => item.findingId === "P1");
+    expect(diagnostic?.classification).toBe("positive_superset");
+    expect(diagnostic?.relatedCaseId).toBe("C1");
+  });
+
+  it("positive_superset: strict rule superset + exact span set (one dimension strict)", () => {
+    const result = evaluate({
+      response: minimalResponse([finding("P1", "contradiction", ["R1", "R2", "R3"], ["S1", "S2"])]),
+      groundTruth: minimalGroundTruth([caseC1]),
+    });
+    const diagnostic = result.predictionDiagnostics.find((item) => item.findingId === "P1");
+    expect(diagnostic?.classification).toBe("positive_superset");
+    expect(diagnostic?.relatedCaseId).toBe("C1");
+  });
+
+  it("positive_superset: strict rule superset + strict span superset (both dimensions strict)", () => {
+    const result = evaluate({
+      response: minimalResponse([finding("P1", "contradiction", ["R1", "R2", "R3"], ["S1", "S2", "S3"])]),
+      groundTruth: minimalGroundTruth([caseC1]),
+    });
+    const diagnostic = result.predictionDiagnostics.find((item) => item.findingId === "P1");
+    expect(diagnostic?.classification).toBe("positive_superset");
+    expect(diagnostic?.relatedCaseId).toBe("C1");
+  });
+
+  it("exact rule/span equality is not classified as a superset", () => {
+    const result = evaluate({
+      response: minimalResponse([finding("P1", "contradiction", ["R1", "R2"], ["S1", "S2"])]),
+      groundTruth: minimalGroundTruth([caseC1]),
+    });
+    const diagnostic = result.predictionDiagnostics.find((item) => item.findingId === "P1");
+    expect(diagnostic?.classification).toBe("exact_positive");
+    expect(diagnostic?.relatedCaseId).toBe("C1");
+  });
+
+  it("positive_partial_overlap when the prediction shares evidence but is neither subset nor superset", () => {
+    const result = evaluate({
+      response: minimalResponse([finding("P1", "contradiction", ["R1", "R3"], ["S1", "S3"])]),
+      groundTruth: minimalGroundTruth([caseC1]),
+    });
+    const diagnostic = result.predictionDiagnostics.find((item) => item.findingId === "P1");
+    expect(diagnostic?.classification).toBe("positive_partial_overlap");
+    expect(diagnostic?.relatedCaseId).toBe("C1");
+  });
+
+  it("distractor_overlap when no positive relation wins but the prediction overlaps a distractor", () => {
+    const distractorD1 = { caseId: "D1", expected: "none", ruleIds: ["R9", "R10"], spanIds: ["S9", "S10"] };
+    const result = evaluate({
+      response: minimalResponse([finding("P1", "contradiction", ["R9"], ["S9"])]),
+      groundTruth: minimalGroundTruth([caseC1, distractorD1]),
+    });
+    const diagnostic = result.predictionDiagnostics.find((item) => item.findingId === "P1");
+    expect(diagnostic?.classification).toBe("distractor_overlap");
+    expect(diagnostic?.relatedCaseId).toBe("D1");
+  });
+});
+
 describe("CLI wrapper — exit behavior", () => {
   afterAll(() => {
     /* fixtures are static files; nothing to clean up */
@@ -251,5 +374,29 @@ describe("CLI wrapper — exit behavior", () => {
   it("exits 2 when arguments are missing", () => {
     const { status } = runCli([]);
     expect(status).toBe(2);
+  });
+
+  it("exits 2 for extra positional arguments", () => {
+    const { status, stderr } = runCli([fx("perfect-five-positive.json"), GROUND_TRUTH_PATH, "extra.json"]);
+    expect(status).toBe(2);
+    expect(stderr).toMatch(/Usage:/);
+  });
+
+  it("exits 2 for an unknown flag", () => {
+    const { status, stderr } = runCli(["--foo", fx("perfect-five-positive.json"), GROUND_TRUTH_PATH]);
+    expect(status).toBe(2);
+    expect(stderr).toMatch(/Usage:/);
+  });
+
+  it("exits 2 for duplicate --gate", () => {
+    const { status, stderr } = runCli(["--gate", "--gate", fx("perfect-five-positive.json"), GROUND_TRUTH_PATH]);
+    expect(status).toBe(2);
+    expect(stderr).toMatch(/Usage:/);
+  });
+
+  it("exits 2 for --gate without exactly two paths", () => {
+    const { status, stderr } = runCli(["--gate", fx("perfect-five-positive.json")]);
+    expect(status).toBe(2);
+    expect(stderr).toMatch(/Usage:/);
   });
 });
