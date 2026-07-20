@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ashglass from "@/fixtures/ashglass-clocktower-v1/input.json";
 import portable from "@/tests/fixtures/portable-two-book-world-pack.json";
@@ -155,5 +155,97 @@ describe("portable Clockwork workflow", () => {
     expect(await screen.findByRole("heading", { name: "Edit World Pack" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Save and return" }));
     await screen.findByRole("heading", { name: "World Library" });
+  });
+});
+
+function deferredAuditMock() {
+  type JsonBody = unknown;
+  let resolveFetch: (value: { json: () => Promise<JsonBody> }) => void = () => {};
+  let rejectFetch: (reason?: unknown) => void = () => {};
+  const fetchMock = vi.fn(
+    () =>
+      new Promise<{ json: () => Promise<JsonBody> }>((resolve, reject) => {
+        resolveFetch = resolve;
+        rejectFetch = reject;
+      }),
+  );
+  const respondOk = (pack: WorldPack) => resolveFetch({ json: async () => auditResponse(pack) });
+  const rejectWith = (error: Error) => rejectFetch(error);
+  return { fetchMock, respondOk, rejectWith };
+}
+
+describe("audit request-generation safety", () => {
+  it("ignores a late non-abort rejection from a stale source", async () => {
+    const store = deferredAuditMock();
+    vi.stubGlobal("fetch", store.fetchMock);
+    const firstPack = portablePack;
+    const secondPack = { ...portablePack, packId: "portable-world-v2", packVersion: "2.0.0", title: "Harbor Revised" };
+    const { rerender } = render(<MisruleApp pack={firstPack} source={{ kind: "inline", pack: firstPack }} />);
+
+    openMountedArchive(/Open the Harbor of Hours archive/);
+    fireEvent.click(screen.getByRole("button", { name: /Set the world in motion/ }));
+
+    rerender(<MisruleApp pack={secondPack} source={{ kind: "inline", pack: secondPack }} />);
+    await act(async () => {
+      store.rejectWith(new TypeError("network failed"));
+    });
+
+    expect(screen.getByRole("button", { name: /Open the Harbor of Hours archive/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Two Tides After One Bell/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "No partial finding was mounted." })).not.toBeInTheDocument();
+    expect(screen.queryByText("The live audit service could not be reached.")).not.toBeInTheDocument();
+  });
+
+  it("ignores a late success from a stale source", async () => {
+    const store = deferredAuditMock();
+    vi.stubGlobal("fetch", store.fetchMock);
+    const firstPack = portablePack;
+    const secondPack = { ...portablePack, packId: "portable-world-v2", packVersion: "2.0.0", title: "Harbor Revised" };
+    const { rerender } = render(<MisruleApp pack={firstPack} source={{ kind: "inline", pack: firstPack }} />);
+
+    openMountedArchive(/Open the Harbor of Hours archive/);
+    fireEvent.click(screen.getByRole("button", { name: /Set the world in motion/ }));
+
+    rerender(<MisruleApp pack={secondPack} source={{ kind: "inline", pack: secondPack }} />);
+    await act(async () => {
+      store.respondOk(firstPack);
+    });
+
+    expect(screen.getByRole("button", { name: /Open the Harbor of Hours archive/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Two Tides After One Bell/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "No partial finding was mounted." })).not.toBeInTheDocument();
+  });
+
+  it("still shows the sanitized failure for a current-source rejection", async () => {
+    const store = deferredAuditMock();
+    vi.stubGlobal("fetch", store.fetchMock);
+    render(<MisruleApp pack={portablePack} source={{ kind: "inline", pack: portablePack }} />);
+
+    openMountedArchive(/Open the Harbor of Hours archive/);
+    fireEvent.click(screen.getByRole("button", { name: /Set the world in motion/ }));
+
+    await act(async () => {
+      store.rejectWith(new TypeError("network failed"));
+    });
+
+    expect(await screen.findByRole("dialog", { name: "No partial finding was mounted." })).toBeInTheDocument();
+    expect(screen.getAllByText("The live audit service could not be reached.").length).toBeGreaterThan(0);
+  });
+
+  it("still rejects a result for another pack/version from the current source", async () => {
+    const store = deferredAuditMock();
+    vi.stubGlobal("fetch", store.fetchMock);
+    render(<MisruleApp pack={portablePack} source={{ kind: "inline", pack: portablePack }} />);
+
+    openMountedArchive(/Open the Harbor of Hours archive/);
+    fireEvent.click(screen.getByRole("button", { name: /Set the world in motion/ }));
+
+    await act(async () => {
+      store.respondOk({ ...portablePack, packId: "different-pack", packVersion: "9.9.9" });
+    });
+
+    expect(await screen.findByRole("dialog", { name: "No partial finding was mounted." })).toBeInTheDocument();
+    expect(screen.getAllByText("The audit service returned a result for another World Pack.").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /Two Tides After One Bell/ })).not.toBeInTheDocument();
   });
 });

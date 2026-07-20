@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Misrule — The Ashglass Clocktower",
+  title: "Misrule — Find where the world turns against itself.",
   description: "Inspectable fictional-world rule audit.",
 };
 

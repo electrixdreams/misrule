@@ -52,6 +52,7 @@ export function MisruleApp({
   });
   const abortRef = useRef<AbortController | null>(null);
   const activeSourceKeyRef = useRef("");
+  const requestGenerationRef = useRef(0);
   const auditReturnFocusRef = useRef<HTMLElement | null>(null);
   const entryButtonRef = useRef<HTMLButtonElement | null>(null);
   const result = selectAuditResult(state);
@@ -72,13 +73,16 @@ export function MisruleApp({
     }
     const controller = new AbortController();
     abortRef.current = controller;
+    const myGeneration = ++requestGenerationRef.current;
     const requestSourceKey = sourceKey;
     const requestedPackId = pack.packId;
     const requestedPackVersion = pack.packVersion;
+    const isCurrentRequest = () =>
+      myGeneration === requestGenerationRef.current && requestSourceKey === activeSourceKeyRef.current;
     dispatch({ type: "AUDIT_REQUESTED" });
     try {
       const response = await requestAudit(source, runtimeSettings, controller.signal);
-      if (requestSourceKey !== activeSourceKeyRef.current) return;
+      if (!isCurrentRequest()) return;
       if (response.ok) {
         if (response.audit.packId !== requestedPackId || response.audit.packVersion !== requestedPackVersion) {
           dispatch({
@@ -91,6 +95,7 @@ export function MisruleApp({
       } else dispatch({ type: "AUDIT_FAILED", error: response.error });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
+      if (!isCurrentRequest()) return;
       dispatch({
         type: "AUDIT_FAILED",
         error: { code: "UPSTREAM_UNAVAILABLE", message: "The live audit service could not be reached.", retryable: true, fallbackOffer: null },
@@ -98,9 +103,13 @@ export function MisruleApp({
     }
   }, [pack.packId, pack.packVersion, runtimeSettings, source, sourceKey]);
 
-  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(() => () => {
+    requestGenerationRef.current++;
+    abortRef.current?.abort();
+  }, []);
 
   useEffect(() => {
+    requestGenerationRef.current++;
     activeSourceKeyRef.current = sourceKey;
     abortRef.current?.abort();
     abortRef.current = null;
