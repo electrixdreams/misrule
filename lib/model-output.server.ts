@@ -55,6 +55,48 @@ const ambiguitySchema = z
 
 export const modelFindingSchema = z.discriminatedUnion("kind", [contradictionSchema, ambiguitySchema]);
 
+// Some OpenAI-compatible providers reject deeply constrained JSON Schemas even
+// though they support strict structured output. Keep the transport schema
+// structural and provider-portable; modelAuditOutputSchema remains the
+// canonical boundary and is always applied before semantic validation.
+const transportPathStepSchema = z
+  .object({
+    kind: z.enum(["rule", "span", "inference"]),
+    ref_id: z.string().nullable(),
+    text: z.string(),
+  })
+  .strict();
+
+const transportSupportedReadingSchema = z
+  .object({
+    label: z.string(),
+    outcome: z.enum(["contradiction_supported", "contradiction_not_supported"]),
+    explanation: z.string(),
+  })
+  .strict();
+
+const transportFindingSchema = z
+  .object({
+    kind: z.enum(["contradiction", "ambiguity"]),
+    title: z.string(),
+    rule_ids: z.array(z.string()),
+    span_ids: z.array(z.string()),
+    path_steps: z.array(transportPathStepSchema),
+    explanation: z.string(),
+    missing_fact: z.string().nullable(),
+    why_unresolved: z.string().nullable(),
+    supported_readings: z.array(transportSupportedReadingSchema),
+  })
+  .strict();
+
+export const modelAuditTransportSchema = z
+  .object({
+    schema_version: z.literal("model-output/v1"),
+    findings: z.array(transportFindingSchema),
+    unresolved_questions: z.array(z.string()),
+  })
+  .strict();
+
 export const modelAuditOutputSchema = z
   .object({
     schema_version: z.literal("model-output/v1"),

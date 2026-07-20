@@ -17,7 +17,7 @@ The bundled **Ashglass Clocktower** world is synthetic and intentionally small: 
 
 ## Run locally
 
-Requirements: Node.js 20.9 or newer and an API key for an enabled OpenAI-compatible provider. The default is OpenRouter with `openai/gpt-oss-120b:free`.
+Requirements: Node.js 20.9 or newer and an API key for an enabled OpenAI-compatible provider. The sample default is OpenRouter with `openai/gpt-oss-20b:free`; model availability and account privacy policy vary, so choose a routable model in Settings when needed.
 
 ```bash
 npm install
@@ -40,9 +40,15 @@ npm run typecheck
 npm run build
 ```
 
+Evaluate a saved successful route response against server-only fixture truth:
+
+```bash
+npm run evaluate:audit -- /path/to/route-response.json fixtures/ashglass-clocktower-v1/ground-truth.server.json
+```
+
 ## Trust and fallback
 
-- Provider output follows strict JSON Schema generated from the canonical Zod schema.
+- Provider output follows a strict provider-portable JSON Schema, then is re-parsed by the stronger canonical Zod schema before semantic validation.
 - The server rejects malformed shapes, unknown citations, incomplete paths, and invalid contradiction/ambiguity semantics.
 - Application finding IDs are assigned only after validation; the provider does not generate them.
 - Pending UI is indeterminate and does not pretend to observe server phases.
@@ -52,7 +58,7 @@ The live integration uses the official [OpenAI JavaScript SDK](https://github.co
 
 ## Competition compliance note
 
-The official Build Week rules say to build a project with Codex and GPT-5.6, and the original Misrule Brief 09 made GPT-5.6 the live audit model. On 2026-07-20 the project owner explicitly amended the runtime to be user-configurable and default to OpenRouter `openai/gpt-oss-120b:free`. The core implementation was still built in the required Codex GPT-5.6 Sol session, but this runtime amendment should not be presented as confirmed equivalent to a load-bearing GPT-5.6 product call without organizer clarification.
+The official Build Week rules say to build a project with Codex and GPT-5.6, and the original Misrule Brief 09 made GPT-5.6 the live audit model. On 2026-07-20 the project owner explicitly amended the runtime to be user-configurable through OpenRouter, initially suggesting `openai/gpt-oss-120b:free`. The core implementation was still built in the required Codex GPT-5.6 Sol session, but this runtime amendment should not be presented as confirmed equivalent to a load-bearing GPT-5.6 product call without organizer clarification. The first live proof used `google/gemini-2.5-flash` because the suggested free 120B route was absent from the current catalog and the account's privacy policy excluded the remaining gpt-oss routes.
 
 ## License
 

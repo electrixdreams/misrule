@@ -5,7 +5,7 @@ import type { AuditProvider, AuditRequest, PublicRuntimeDefaults } from "@/lib/c
 import { AuditServiceError } from "@/lib/audit-errors";
 
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1";
-const OPENROUTER_MODEL = "openai/gpt-oss-120b:free";
+const OPENROUTER_MODEL = "openai/gpt-oss-20b:free";
 
 export type ResolvedRuntimeSettings = {
   provider: AuditProvider;

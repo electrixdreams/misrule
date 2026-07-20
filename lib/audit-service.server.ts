@@ -9,12 +9,12 @@ import type { AuditRequest, AuditResultDto, AuditSuccessResponse, PublicFixture 
 import { AuditServiceError } from "@/lib/audit-errors";
 import { FixtureRepositoryError, loadPublicFixture } from "@/lib/fixture-catalog.server";
 import { deterministicMockOutput } from "@/lib/mock-audit.server";
-import { modelAuditOutputSchema, validateModelOutputSemantics, type ModelAuditOutput } from "@/lib/model-output.server";
+import { modelAuditOutputSchema, modelAuditTransportSchema, validateModelOutputSemantics, type ModelAuditOutput } from "@/lib/model-output.server";
 import { resolveRuntimeSettings, type ResolvedRuntimeSettings } from "@/lib/runtime-settings.server";
 
 export { AuditServiceError } from "@/lib/audit-errors";
 
-export const PROMPT_VERSION = "misrule-audit/v1";
+export const PROMPT_VERSION = "misrule-audit/v2";
 export const MODEL_SCHEMA_VERSION = "model-output/v1";
 
 export type AuditModelInput = {
@@ -95,6 +95,9 @@ function classifyProviderError(error: unknown): AuditServiceError {
   if (error instanceof OpenAI.APIError) {
     if (error.status === 401 || error.status === 403) return new AuditServiceError("UPSTREAM_AUTH_ERROR", "The live audit service could not authenticate.", 503, false);
     if (error.status === 429) return new AuditServiceError("UPSTREAM_RATE_LIMIT", "The live audit service is rate limited.", 429, true);
+    if (error.status === 400 || error.status === 404 || error.status === 422) {
+      return new AuditServiceError("UPSTREAM_REQUEST_REJECTED", "The provider rejected the selected model or request parameters.", 422, false);
+    }
     if (error.status && error.status >= 500) return new AuditServiceError("UPSTREAM_UNAVAILABLE", "The live audit service is temporarily unavailable.", 502, true);
   }
   if (error instanceof Error && /timeout|timed out|abort/i.test(error.message)) return new AuditServiceError("UPSTREAM_TIMEOUT", "The live audit timed out.", 504, true);
@@ -124,14 +127,23 @@ export class OpenAICompatibleAuditGateway implements AuditModelGateway {
         messages: [
           {
             role: "system" as const,
-            content:
-              "Audit only the supplied fictional-world rules and narrative spans. Surface contradictions only when the cited path closes under the stated rules. Preserve unresolved evidence as ambiguity when one missing fact supports both a contradiction and non-contradiction reading. Cite exact supplied IDs, invent no exceptions or facts, and return only the strict schema.",
+            content: [
+              "Audit only the supplied fictional-world rules and narrative spans.",
+              "Return schema_version exactly as model-output/v1.",
+              "Surface contradictions only when the cited path closes under the stated rules.",
+              "Also surface each legitimate ambiguity when one specific missing fact supports both a contradiction_supported reading and a contradiction_not_supported reading; do not replace such findings with unresolved_questions.",
+              "For contradictions, missing_fact and why_unresolved must be null and supported_readings must be empty.",
+              "For ambiguities, missing_fact and why_unresolved must be non-empty and supported_readings must contain exactly two entries, one for each allowed outcome.",
+              "Every cited rule or span must appear in path_steps and every rule/span path step must be cited.",
+              "Cite exact supplied IDs, invent no exceptions or facts, and return only the strict schema.",
+            ].join(" "),
           },
           { role: "user" as const, content: JSON.stringify(input) },
         ],
-        response_format: zodResponseFormat(modelAuditOutputSchema, "misrule_audit"),
-        max_completion_tokens: 16_000,
-        ...(this.settings.provider === "openrouter" ? { provider: { require_parameters: true } } : {}),
+        response_format: zodResponseFormat(modelAuditTransportSchema, "misrule_audit"),
+        ...(this.settings.provider === "openrouter"
+          ? { max_tokens: 16_000, provider: { require_parameters: true } }
+          : { max_completion_tokens: 16_000 }),
       };
       const response = await this.client.chat.completions.create(request);
       const choice = response.choices[0];
@@ -139,11 +151,13 @@ export class OpenAICompatibleAuditGateway implements AuditModelGateway {
       if (choice.finish_reason === "length") throw new AuditServiceError("MODEL_OUTPUT_INCOMPLETE", "The model response exceeded its output limit.", 502, true);
       if (choice.message.refusal) throw new AuditServiceError("MODEL_REFUSAL", "The model declined the audit.", 422, false);
       if (!choice.message.content) throw new AuditServiceError("MALFORMED_OUTPUT", "The model returned no parseable audit.", 422, true);
-      let output: unknown;
+      let output: unknown = choice.message.content;
       try {
         output = JSON.parse(choice.message.content);
       } catch {
-        throw new AuditServiceError("MALFORMED_OUTPUT", "The model returned invalid JSON.", 422, true);
+        // Preserve the unparsed value in server-side evidence. The canonical
+        // schema below will reject it without exposing provider text to the
+        // browser or attempting a repair.
       }
       return {
         output,
@@ -195,14 +209,7 @@ export async function executeLiveAudit(
   const started = Date.now();
   const input = buildModelInput(fixture);
   const gatewayResult = await dependencies.gateway.generate(input);
-  const shape = modelAuditOutputSchema.safeParse(gatewayResult.output);
-  if (!shape.success) throw new AuditServiceError("MALFORMED_OUTPUT", "The model output did not match the required audit structure.", 422, true);
-  const semanticIssues = validateModelOutputSemantics(shape.data, fixture);
-  if (semanticIssues.length > 0) throw new AuditServiceError("INVALID_CITATIONS", "The model output contained invalid or incomplete evidence paths.", 422, true);
-
-  const audit = normalize(shape.data, fixture, gatewayResult);
-  const totalMs = Date.now() - started;
-  await preserveEvidence(dependencies.evidenceDirectory, {
+  const evidenceBase = {
     evidenceVersion: "misrule-route-proof/v1",
     clientRequestId: request.clientRequestId,
     fixtureDigest: createHash("sha256").update(JSON.stringify(fixture)).digest("hex"),
@@ -214,6 +221,36 @@ export async function executeLiveAudit(
     returnedModel: gatewayResult.returnedModel,
     modelInput: input,
     rawResponse: gatewayResult.rawResponse,
+  };
+  const shape = modelAuditOutputSchema.safeParse(gatewayResult.output);
+  if (!shape.success) {
+    await preserveEvidence(dependencies.evidenceDirectory, {
+      ...evidenceBase,
+      normalizedAudit: null,
+      validation: {
+        shape: "FAIL",
+        semantics: "NOT_RUN",
+        issues: shape.error.issues.map((issue) => ({ code: issue.code, path: issue.path, message: issue.message })),
+      },
+      latencyMs: Date.now() - started,
+    });
+    throw new AuditServiceError("MALFORMED_OUTPUT", "The model output did not match the required audit structure.", 422, true);
+  }
+  const semanticIssues = validateModelOutputSemantics(shape.data, fixture);
+  if (semanticIssues.length > 0) {
+    await preserveEvidence(dependencies.evidenceDirectory, {
+      ...evidenceBase,
+      normalizedAudit: null,
+      validation: { shape: "PASS", semantics: "FAIL", issues: semanticIssues },
+      latencyMs: Date.now() - started,
+    });
+    throw new AuditServiceError("INVALID_CITATIONS", "The model output contained invalid or incomplete evidence paths.", 422, true);
+  }
+
+  const audit = normalize(shape.data, fixture, gatewayResult);
+  const totalMs = Date.now() - started;
+  await preserveEvidence(dependencies.evidenceDirectory, {
+    ...evidenceBase,
     normalizedAudit: audit,
     validation: { shape: "PASS", semantics: "PASS", issueCount: 0 },
     latencyMs: totalMs,

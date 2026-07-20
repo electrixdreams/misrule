@@ -34,6 +34,14 @@ describe("audit service", () => {
     await expect(executeLiveAudit(request, { gateway })).rejects.toMatchObject({ code: "MALFORMED_OUTPUT", status: 422 });
   });
 
+  it("re-parses provider-shaped output with the stronger canonical schema", async () => {
+    const valid = await new MockAuditGateway().generate();
+    const output = structuredClone(valid.output) as { findings: Array<{ supported_readings: unknown[] }> };
+    output.findings[1].supported_readings = [];
+    const gateway: AuditModelGateway = { generate: async () => ({ ...valid, output }) };
+    await expect(executeLiveAudit(request, { gateway })).rejects.toMatchObject({ code: "MALFORMED_OUTPUT", status: 422 });
+  });
+
   it("types invalid citations before normalization", async () => {
     const valid = await new MockAuditGateway().generate();
     const output = structuredClone(valid.output) as { findings: Array<{ rule_ids: string[] }> };
@@ -70,9 +78,53 @@ describe("audit service", () => {
     const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
     expect(body).toMatchObject({
       model: "openai/gpt-oss-120b:free",
+      max_tokens: 16_000,
       provider: { require_parameters: true },
       response_format: { type: "json_schema", json_schema: { name: "misrule_audit", strict: true } },
     });
+    expect(body).not.toHaveProperty("max_completion_tokens");
     expect(JSON.stringify(body)).not.toContain("session-secret");
+  });
+
+  it("returns unparseable provider text for canonical rejection", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      id: "generation-invalid-json",
+      object: "chat.completion",
+      created: 1,
+      model: "google/gemini-2.5-flash",
+      choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: "not-json" } }],
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const gateway = new OpenAICompatibleAuditGateway({
+      provider: "openrouter",
+      apiEndpoint: "https://openrouter.ai/api/v1",
+      endpointHost: "openrouter.ai",
+      model: "google/gemini-2.5-flash",
+      apiKey: "session-secret",
+      credentialSource: "request",
+    });
+
+    await expect(gateway.generate(buildModelInput(publicFixtureSchema.parse(ashglass)))).resolves.toMatchObject({ output: "not-json" });
+  });
+
+  it("types provider model or parameter rejection separately from outage", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { message: "No endpoints found", code: 404 } }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    })));
+    const gateway = new OpenAICompatibleAuditGateway({
+      provider: "openrouter",
+      apiEndpoint: "https://openrouter.ai/api/v1",
+      endpointHost: "openrouter.ai",
+      model: "retired/model",
+      apiKey: "session-secret",
+      credentialSource: "request",
+    });
+
+    await expect(gateway.generate(buildModelInput(publicFixtureSchema.parse(ashglass)))).rejects.toMatchObject({
+      code: "UPSTREAM_REQUEST_REJECTED",
+      status: 422,
+      retryable: false,
+    });
   });
 });
