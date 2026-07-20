@@ -32,10 +32,12 @@ export function MisruleApp({
     allowedEndpointHosts: ["openrouter.ai", "api.openai.com"],
   },
   auditMode = "live",
+  onReturnToLibrary,
 }: {
   pack: WorldPack;
   runtimeDefaults?: PublicRuntimeDefaults;
   auditMode?: "live" | "mock";
+  onReturnToLibrary?: () => void;
 }) {
   const [state, dispatch] = useReducer(misruleReducer, initialMisruleState);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -145,6 +147,12 @@ export function MisruleApp({
         <span>Settings</span>
         <small>{runtimeSettings.provider === "openrouter" ? "OpenRouter" : "Compatible API"} · {runtimeSettings.model}</small>
       </button>
+
+      {onReturnToLibrary ? (
+        <button className="library-return" type="button" onClick={onReturnToLibrary} aria-label="Return to the World Library">
+          <span>World Library</span>
+        </button>
+      ) : null}
 
       <div className="workspace">
         <ClockworkInstrument

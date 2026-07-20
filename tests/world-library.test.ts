@@ -6,6 +6,7 @@ import {
   getLocalWorldPack,
   listLocalWorldPacks,
   loadWorldLibrary,
+  resetLocalWorldLibrary,
   saveLocalWorldPack,
   type WorldLibraryStorage,
 } from "@/lib/world-library.client";
@@ -132,5 +133,48 @@ describe("bounded browser-local World Library", () => {
     expect(storage.value).not.toContain("audit");
     expect(storage.value).not.toContain("ashglass-clocktower-v1");
     expect(storage.getItem(WORLD_LIBRARY_STORAGE_KEY)).toBe(storage.value);
+  });
+});
+
+describe("resetLocalWorldLibrary", () => {
+  class KeyedStorage implements WorldLibraryStorage {
+    map = new Map<string, string>();
+    getItem(key: string) {
+      return this.map.has(key) ? this.map.get(key)! : null;
+    }
+    setItem(key: string, value: string) {
+      this.map.set(key, value);
+    }
+    removeItem(key: string) {
+      this.map.delete(key);
+    }
+  }
+
+  it("removes only the World Library storage key and leaves other keys intact", () => {
+    const storage = new KeyedStorage();
+    saveLocalWorldPack(basePack, { now: () => "2026-07-20T01:00:00.000Z" }, storage);
+    storage.setItem("misrule.other", "keep");
+    resetLocalWorldLibrary(storage);
+    expect(storage.getItem(WORLD_LIBRARY_STORAGE_KEY)).toBeNull();
+    expect(storage.getItem("misrule.other")).toBe("keep");
+    expect(loadWorldLibrary(storage)).toEqual({ schemaVersion: "world-library/v1", entries: [] });
+  });
+
+  it("throws STORAGE_UNAVAILABLE through the existing storage boundary", () => {
+    const blocked: WorldLibraryStorage = {
+      getItem: () => { throw new Error("blocked"); },
+      setItem: () => { throw new Error("blocked"); },
+      removeItem: () => { throw new Error("blocked"); },
+    };
+    expect(() => resetLocalWorldLibrary(blocked)).toThrow(expect.objectContaining({ code: "STORAGE_UNAVAILABLE" }));
+  });
+
+  it("reloads an empty library after a corrupted envelope is reset", () => {
+    const storage = new MemoryStorage();
+    storage.value = "{broken";
+    expect(() => loadWorldLibrary(storage)).toThrow(expect.objectContaining({ code: "CORRUPTED_ENVELOPE" }));
+    resetLocalWorldLibrary(storage);
+    expect(() => loadWorldLibrary(storage)).not.toThrow();
+    expect(loadWorldLibrary(storage).entries).toHaveLength(0);
   });
 });

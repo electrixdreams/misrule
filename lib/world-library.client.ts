@@ -185,3 +185,12 @@ export function deleteLocalWorldPack(packId: string, storage?: WorldLibraryStora
   writeEnvelope(resolved, { schemaVersion: WORLD_LIBRARY_SCHEMA_VERSION, entries });
   return true;
 }
+
+export function resetLocalWorldLibrary(storage?: WorldLibraryStorage): void {
+  const resolved = resolveStorage(storage);
+  try {
+    resolved.removeItem(WORLD_LIBRARY_STORAGE_KEY);
+  } catch {
+    throw new WorldLibraryError("STORAGE_UNAVAILABLE", "Browser-local storage is unavailable.");
+  }
+}

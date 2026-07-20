@@ -179,4 +179,14 @@ describe("judge-visible vertical slice", () => {
     expect(screen.getByText("Deterministic mock · not live")).toBeInTheDocument();
     expect(screen.queryByText("Validated live response")).not.toBeInTheDocument();
   });
+
+  it("exposes a return-to-library control that fires the handler", () => {
+    const onReturn = vi.fn();
+    render(<MisruleApp pack={worldPackSchema.parse(ashglass)} onReturnToLibrary={onReturn} />);
+    fireEvent.click(screen.getByRole("button", { name: /Open the Ashglass archive/ }));
+    const returnButton = screen.getByRole("button", { name: "Return to the World Library" });
+    returnButton.focus();
+    fireEvent.click(returnButton);
+    expect(onReturn).toHaveBeenCalled();
+  });
 });
