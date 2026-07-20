@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "ground-truth/v1",
+  "fixtureId": "ashglass-clocktower-v1",
+  "fixtureVersion": "1.0.0-c2",
+  "cases": [
+    { "caseId": "RG-C01", "expected": "contradiction", "ruleIds": ["RG-R03", "RG-R04"], "spanIds": ["RG-S01", "RG-S02"], "multiHop": true },
+    { "caseId": "RG-C02", "expected": "contradiction", "ruleIds": ["RG-R05", "RG-R06"], "spanIds": ["RG-S04", "RG-S05", "RG-S06"], "multiHop": true },
+    { "caseId": "RG-C03", "expected": "contradiction", "ruleIds": ["RG-R07"], "spanIds": ["RG-S07", "RG-S08"], "multiHop": false },
+    { "caseId": "RG-A01", "expected": "ambiguity", "ruleIds": ["RG-R09"], "spanIds": ["RG-S09", "RG-S10"], "multiHop": false, "missingFact": "Whether the North Star appeared reflected in the seeing basin when Nera received the red vision." },
+    { "caseId": "RG-A02", "expected": "ambiguity", "ruleIds": ["RG-R02"], "spanIds": ["RG-S11", "RG-S12", "RG-S17"], "multiHop": false, "missingFact": "Whether the silver-masked figure was a living person at the time it crossed the Mirror Gate." },
+    { "caseId": "RG-D01", "expected": "none", "ruleIds": ["RG-R08"], "spanIds": ["RG-S13", "RG-S14"], "multiHop": false },
+    { "caseId": "RG-D02", "expected": "none", "ruleIds": ["RG-R10"], "spanIds": ["RG-S15", "RG-S16", "RG-S18"], "multiHop": false }
+  ]
+}

@@ -1,0 +1,24 @@
+# dependencies
+/node_modules
+
+# Next.js
+/.next
+/out
+
+# local configuration and secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# local proof output and logs
+/.misrule-evidence
+/coverage
+*.log
+
+# editors and OS
+.DS_Store
+*.swp
+
+# TypeScript
+*.tsbuildinfo

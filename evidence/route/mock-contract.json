@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "misrule-route-evidence/v1",
+  "requestId": "browser-qa-route",
+  "route": "/api/audit",
+  "ok": true,
+  "source": {
+    "mode": "mock",
+    "requestedModel": "deterministic-mock",
+    "model": "deterministic-mock"
+  },
+  "findings": [
+    {
+      "id": "finding-01",
+      "kind": "contradiction",
+      "ruleIds": ["RG-R03", "RG-R04"],
+      "spanIds": ["RG-S01", "RG-S02"]
+    },
+    {
+      "id": "finding-02",
+      "kind": "ambiguity",
+      "ruleIds": ["RG-R09"],
+      "spanIds": ["RG-S09", "RG-S10"]
+    }
+  ],
+  "providerOnlyFieldsExposed": [],
+  "boundary": "Deterministic mock proof only; not a live GPT-5.6 result."
+}

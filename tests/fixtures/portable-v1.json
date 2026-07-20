@@ -1,0 +1,29 @@
+{
+  "schemaVersion": "fixture/v1",
+  "fixtureId": "portable-world-v1",
+  "fixtureVersion": "1.0.0",
+  "title": "Harbor of Hours",
+  "description": "A test-only fixture for generic portability.",
+  "synthetic": true,
+  "disclosure": "Test-only synthetic fixture.",
+  "world": {
+    "worldId": "world-hours",
+    "slug": "hours",
+    "title": "Harbor of Hours",
+    "premise": "Every bell changes which tide may enter the harbor.",
+    "summary": "A test-only portable world.",
+    "tags": ["test"]
+  },
+  "books": [
+    { "bookId": "volume-dawn", "worldId": "world-hours", "slug": "dawn", "title": "Dawn Ledger", "sourceLabel": "Dawn archive", "ordinal": 1 },
+    { "bookId": "volume-dusk", "worldId": "world-hours", "slug": "dusk", "title": "Dusk Ledger", "sourceLabel": "Dusk archive", "ordinal": 2 }
+  ],
+  "rules": [
+    { "ruleId": "LAW-A", "worldId": "world-hours", "scope": { "kind": "world", "worldId": "world-hours" }, "type": "constraint", "title": "Bell Tide", "text": "Only one tide may enter after each bell.", "displayOrder": 1 },
+    { "ruleId": "LAW-B", "worldId": "world-hours", "scope": { "kind": "book", "bookId": "volume-dusk" }, "type": "fact", "title": "Dusk Bell", "text": "The dusk bell rang once.", "displayOrder": 2 }
+  ],
+  "spans": [
+    { "spanId": "NOTE-A", "worldId": "world-hours", "bookId": "volume-dawn", "source": { "label": "Dawn Ledger", "scene": "Quay" }, "text": "The white tide entered after the bell.", "displayOrder": 1 },
+    { "spanId": "NOTE-B", "worldId": "world-hours", "bookId": "volume-dusk", "source": { "label": "Dusk Ledger", "scene": "Quay" }, "text": "The black tide entered after the same bell.", "displayOrder": 2 }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "fixture/v1",
+  "fixtureId": "ashglass-clocktower-v1",
+  "fixtureVersion": "1.0.0-c2",
+  "title": "The Ashglass Clocktower",
+  "description": "A synthetic fictional-world archive built to test inspectable contradiction and ambiguity traces.",
+  "synthetic": true,
+  "disclosure": "Synthetic demo fixture — not a real manuscript.",
+  "world": {
+    "worldId": "world-ashglass",
+    "slug": "ashglass",
+    "title": "Ashglass",
+    "premise": "Ashglass is a rain-dark civic world where law, ritual magic, and memory are recorded with bureaucratic severity. The four-faced Clocktower regulates the city. The dead may leave memory echoes but do not return in living bodies. A bridge changes substance under a Red Moon. Brass courier moths keep exact intervals. Oath-seals react to knowledge, not error. Oracle Nera’s visions are usually possibilities, though a rare star-marked vision is fixed.",
+    "summary": "Ritual law and civic records govern what can happen in Veyra.",
+    "tags": ["synthetic", "civic fantasy", "rule audit"]
+  },
+  "books": [
+    {
+      "bookId": "book-ashglass-clocktower",
+      "worldId": "world-ashglass",
+      "slug": "ashglass-clocktower",
+      "title": "The Ashglass Clocktower",
+      "sourceLabel": "Ashglass civic archive",
+      "ordinal": 1,
+      "summary": "Council chronicles, patrol logs, journals, and inquiry records from Veyra."
+    }
+  ],
+  "rules": [
+    { "ruleId": "RG-R01", "worldId": "world-ashglass", "scope": { "kind": "world", "worldId": "world-ashglass" }, "type": "fact", "title": "Four-Faced Tower", "text": "The Ashglass Clocktower stands in Veyra’s East Ward and bears exactly four clock faces.", "displayOrder": 1 },
+    { "ruleId": "RG-R02", "worldId": "world-ashglass", "scope": { "kind": "world", "worldId": "world-ashglass" }, "type": "constraint", "title": "Mirror Gate Curfew", "text": "After sunset, no living person can pass through the Mirror Gate.", "displayOrder": 2 },
+    { "ruleId": "RG-R03", "worldId": "world-ashglass", "scope": { "kind": "world", "worldId": "world-ashglass" }, "type": "temporal", "title": "Orin’s Death", "text": "Captain Orin Vale died in Year 412, and his body was cremated before the first snow of that winter.", "displayOrder": 3 },
+    { "ruleId": "RG-R04", "worldId": "world-ashglass", "scope": { "kind": "world", "worldId": "world-ashglass" }, "type": "constraint", "title": "No Bodily Return", "text": "Veyra has no magic that restores a dead person to bodily life. Memory echoes may speak or appear, but they have no pulse, warmth, or physical weight.", "displayOrder": 4 },
+    { "ruleId": "RG-R05", "worldId": "world-ashglass", "scope": { "kind": "world", "worldId": "world-ashglass" }, "type": "constraint", "title": "Moonstone Intangibility", "text": "While a Red Moon is active, the moonstone bridge is intangible to physical bodies and cannot bear their weight.", "displayOrder": 5 },
+    { "ruleId": "RG-R06", "worldId": "world-ashglass", "scope": { "kind": "world", "worldId": "world-ashglass" }, "type": "temporal", "title": "Festival Red Moon", "text": "On Festival Night, the Red Moon was active from 00:00 until 03:00.", "displayOrder": 6 },
+    { "ruleId": "RG-R07", "worldId": "world-ashglass", "scope": { "kind": "world", "worldId": "world-ashglass" }, "type": "conditional", "title": "Brass Moth Interval", "text": "A brass moth released with a sealed message returns to its sender exactly one hour after release, never sooner or later.", "displayOrder": 7 },
+    { "ruleId": "RG-R08", "worldId": "world-ashglass", "scope": { "kind": "world", "worldId": "world-ashglass" }, "type": "conditional", "title": "Warden’s Oath-Seal", "text": "A Warden’s oath-seal shatters at the moment the sworn Warden knowingly speaks a falsehood; an honestly mistaken statement leaves it intact.", "displayOrder": 8 },
+    { "ruleId": "RG-R09", "worldId": "world-ashglass", "scope": { "kind": "world", "worldId": "world-ashglass" }, "type": "conditional", "title": "Star-Marked Visions", "text": "Oracle Nera’s visions show possible futures unless the North Star appears reflected in the seeing basin; a star-marked vision is fixed and must occur before its stated deadline.", "displayOrder": 9 },
+    { "ruleId": "RG-R10", "worldId": "world-ashglass", "scope": { "kind": "world", "worldId": "world-ashglass" }, "type": "constraint", "title": "Sun-Bleached Ink", "text": "Black archive ink bleaches to blankness under direct sunlight; pigments of other colours are unaffected.", "displayOrder": 10 }
+  ],
+  "spans": [
+    { "spanId": "RG-S01", "worldId": "world-ashglass", "bookId": "book-ashglass-clocktower", "source": { "label": "Council Chronicle", "scene": "The Returned Captain" }, "text": "The clerk dated the emergency session to the seventeenth day of Rainfall, Year 415. At the threshold, the council’s identity seal verified the visitor’s bloodprint and kindled the registered name ORIN VALE across its silver plate. As the eastern bells struck nine, every councillor turned toward the chamber doors.", "displayOrder": 1 },
+    { "spanId": "RG-S02", "worldId": "world-ashglass", "bookId": "book-ashglass-clocktower", "source": { "label": "Council Chronicle", "scene": "The Returned Captain" }, "text": "Captain Orin Vale stepped in from the storm. Rain darkened his coat; his hand left a wet print on the council table, and when Mara seized his wrist she felt a warm, steady pulse beneath the skin.", "displayOrder": 2 },
+    { "spanId": "RG-S03", "worldId": "world-ashglass", "bookId": "book-ashglass-clocktower", "source": { "label": "East Ward Survey", "scene": "Clocktower Elevation" }, "text": "The surveyor’s plate marks the Ashglass Clocktower in the East Ward. Its elevation shows one clock face on each side of the square crown: north, east, south, and west.", "displayOrder": 3 },
+    { "spanId": "RG-S04", "worldId": "world-ashglass", "bookId": "book-ashglass-clocktower", "source": { "label": "Festival Patrol Log", "scene": "Moonstone Bridge, 01:40" }, "text": "At 01:40, Mara left the north quay and reached the foot of the moonstone bridge, trying to cut ahead of the rioters.", "displayOrder": 4 },
+    { "spanId": "RG-S05", "worldId": "world-ashglass", "bookId": "book-ashglass-clocktower", "source": { "label": "Festival Patrol Log", "scene": "Moonstone Bridge, 01:40" }, "text": "The Red Moon hung unobscured above the river, staining the bridge rails the colour of fresh rust. The patrol log notes that its light did not fade during the crossing.", "displayOrder": 5 },
+    { "spanId": "RG-S06", "worldId": "world-ashglass", "bookId": "book-ashglass-clocktower", "source": { "label": "Festival Patrol Log", "scene": "Moonstone Bridge, 01:40" }, "text": "Mara sprinted from one bank to the other. Her boots struck every pale slab, the bridge rang under her weight, and she arrived with stone dust on both soles.", "displayOrder": 6 },
+    { "spanId": "RG-S07", "worldId": "world-ashglass", "bookId": "book-ashglass-clocktower", "source": { "label": "Brass Courier Register", "scene": "Bellmaker’s Shop" }, "text": "At 21:10, Ivo wound Brass Moth Seven, sealed the magistrate’s note beneath its left wing, and released it from the bellmaker’s window.", "displayOrder": 7 },
+    { "spanId": "RG-S08", "worldId": "world-ashglass", "bookId": "book-ashglass-clocktower", "source": { "label": "Brass Courier Register", "scene": "Bellmaker’s Shop" }, "text": "At 21:35, Brass Moth Seven tapped the same window and folded itself into Ivo’s palm. The magistrate’s seal was broken, and a reply had been tucked beneath the wing.", "displayOrder": 8 },
+    { "spanId": "RG-S09", "worldId": "world-ashglass", "bookId": "book-ashglass-clocktower", "source": { "label": "Oracle Chamber Journal", "scene": "The Red Vision" }, "text": "Clouds moved across the open roof above the oracle chamber, alternately hiding and revealing the stars. Nera gripped the rim of the seeing basin and whispered, “Before dawn, the east tower drowns in red light; glass runs from its clocks like rain.” The acolyte recorded the vision word for word.", "displayOrder": 9 },
+    { "spanId": "RG-S10", "worldId": "world-ashglass", "bookId": "book-ashglass-clocktower", "source": { "label": "Dawn Watch Report", "scene": "East Ward Sunrise" }, "text": "Sunrise came at 05:52. The Ashglass Clocktower was still standing, its four faces intact, and the watch reported no fire, molten glass, or red flare before dawn.", "displayOrder": 10 },
+    { "spanId": "RG-S11", "worldId": "world-ashglass", "bookId": "book-ashglass-clocktower", "source": { "label": "Mirror Gate Watch Report", "scene": "West Arcade Crossing" }, "text": "At 19:03, a tall figure in a silver mask crossed the Mirror Gate from the west arcade into the inner city. The gate did not bar its passage.", "displayOrder": 11 },
+    { "spanId": "RG-S12", "worldId": "world-ashglass", "bookId": "book-ashglass-clocktower", "source": { "label": "Mirror Gate Watch Report", "scene": "West Arcade Crossing" }, "text": "The witness could not tell whether the figure breathed beneath its cloak. Its steps were even, its joints clicked like wound gears, and no skin showed between glove and sleeve.", "displayOrder": 12 },
+    { "spanId": "RG-S13", "worldId": "world-ashglass", "bookId": "book-ashglass-clocktower", "source": { "label": "Vault Inquiry Transcript", "scene": "Warden Cel’s Deposition" }, "text": "With her oath-seal bright at her throat, Warden Cel testified, “The lower vault is empty.” When inspectors later opened it, they found three contraband reliquaries; Cel’s seal remained whole.", "displayOrder": 13 },
+    { "spanId": "RG-S14", "worldId": "world-ashglass", "bookId": "book-ashglass-clocktower", "source": { "label": "Vault Inquiry Transcript", "scene": "Warden Cel’s Deposition" }, "text": "Cel had checked the official inventory before testifying. A clerk had replaced the true ledger with a forgery showing the vault cleared, and Cel had received no other report that the reliquaries remained.", "displayOrder": 14 },
+    { "spanId": "RG-S15", "worldId": "world-ashglass", "bookId": "book-ashglass-clocktower", "source": { "label": "Archive Incident Report", "scene": "South Reading Room" }, "text": "At noon, a fallen shutter let a bar of direct sunlight sweep across the unfolded map on Table Six.", "displayOrder": 15 },
+    { "spanId": "RG-S16", "worldId": "world-ashglass", "bookId": "book-ashglass-clocktower", "source": { "label": "Archive Incident Report", "scene": "South Reading Room" }, "text": "The map’s blue coastlines, river marks, and lettering remained crisp after ten minutes in the light; none of the marks faded.", "displayOrder": 16 },
+    { "spanId": "RG-S17", "worldId": "world-ashglass", "bookId": "book-ashglass-clocktower", "source": { "label": "City Almanac", "scene": "Rainfall 17" }, "text": "For the seventeenth day of Rainfall, the City Almanac lists sunset at 18:42.", "displayOrder": 17 },
+    { "spanId": "RG-S18", "worldId": "world-ashglass", "bookId": "book-ashglass-clocktower", "source": { "label": "Conservator’s Note", "scene": "Table Six Map" }, "text": "The conservator identified every mark on the map as azurite pigment bound with gum. No black archive ink had been used.", "displayOrder": 18 }
+  ]
+}
