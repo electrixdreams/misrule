@@ -188,6 +188,31 @@ export const auditResultDtoSchema = z
 export type FindingDto = z.infer<typeof findingDtoSchema>;
 export type AuditResultDto = z.infer<typeof auditResultDtoSchema>;
 
+export const auditProviderSchema = z.enum(["openrouter", "openai-compatible"]);
+
+export const runtimeSettingsSchema = z
+  .object({
+    provider: auditProviderSchema,
+    apiEndpoint: z.url().trim().max(500),
+    model: z.string().trim().min(1).max(200),
+    apiKey: z.string().trim().min(1).max(4_000).optional(),
+  })
+  .strict();
+
+export const publicRuntimeDefaultsSchema = z
+  .object({
+    provider: auditProviderSchema,
+    apiEndpoint: z.url().trim().max(500),
+    model: z.string().trim().min(1).max(200),
+    hasServerApiKey: z.boolean(),
+    allowedEndpointHosts: z.array(z.string().trim().min(1).max(253)).min(1).max(24),
+  })
+  .strict();
+
+export type AuditProvider = z.infer<typeof auditProviderSchema>;
+export type RuntimeSettings = z.infer<typeof runtimeSettingsSchema>;
+export type PublicRuntimeDefaults = z.infer<typeof publicRuntimeDefaultsSchema>;
+
 export const auditRequestSchema = z
   .object({
     schemaVersion: z.literal("audit-api/v1"),
@@ -197,6 +222,7 @@ export const auditRequestSchema = z
       z.object({ mode: z.literal("live") }).strict(),
       z.object({ mode: z.literal("captured"), offerToken: nonEmpty }).strict(),
     ]),
+    runtime: runtimeSettingsSchema.optional(),
   })
   .strict();
 

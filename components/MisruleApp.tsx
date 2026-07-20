@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
-import type { PublicFixture } from "@/lib/contracts";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import type { PublicFixture, PublicRuntimeDefaults, RuntimeSettings } from "@/lib/contracts";
 import { requestAudit } from "@/lib/audit-client";
 import { ArchiveLeaf } from "@/components/ArchiveLeaf";
 import { AuditFailureDialog } from "@/components/AuditFailureDialog";
 import { AuditCurtain } from "@/components/AuditCurtain";
 import { ClockworkInstrument } from "@/components/ClockworkInstrument";
 import { WorldDrawer } from "@/components/WorldDrawer";
+import { RuntimeSettingsDialog } from "@/components/RuntimeSettingsDialog";
 import { buildInstrumentViewModel } from "@/lib/presentation";
 import {
   escapeAction,
@@ -20,8 +21,28 @@ import {
   type StationId,
 } from "@/lib/misrule-state";
 
-export function MisruleApp({ fixture, auditMode = "live" }: { fixture: PublicFixture; auditMode?: "live" | "mock" }) {
+export function MisruleApp({
+  fixture,
+  runtimeDefaults = {
+    provider: "openrouter",
+    apiEndpoint: "https://openrouter.ai/api/v1",
+    model: "openai/gpt-oss-120b:free",
+    hasServerApiKey: false,
+    allowedEndpointHosts: ["openrouter.ai", "api.openai.com"],
+  },
+  auditMode = "live",
+}: {
+  fixture: PublicFixture;
+  runtimeDefaults?: PublicRuntimeDefaults;
+  auditMode?: "live" | "mock";
+}) {
   const [state, dispatch] = useReducer(misruleReducer, initialMisruleState);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [runtimeSettings, setRuntimeSettings] = useState<RuntimeSettings>({
+    provider: runtimeDefaults.provider,
+    apiEndpoint: runtimeDefaults.apiEndpoint,
+    model: runtimeDefaults.model,
+  });
   const abortRef = useRef<AbortController | null>(null);
   const auditReturnFocusRef = useRef<HTMLElement | null>(null);
   const entryButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -41,7 +62,7 @@ export function MisruleApp({ fixture, auditMode = "live" }: { fixture: PublicFix
     abortRef.current = controller;
     dispatch({ type: "AUDIT_REQUESTED" });
     try {
-      const response = await requestAudit(fixture.fixtureId, controller.signal);
+      const response = await requestAudit(fixture.fixtureId, runtimeSettings, controller.signal);
       if (response.ok) dispatch({ type: "AUDIT_SUCCEEDED", result: response.audit });
       else dispatch({ type: "AUDIT_FAILED", error: response.error });
     } catch (error) {
@@ -51,7 +72,7 @@ export function MisruleApp({ fixture, auditMode = "live" }: { fixture: PublicFix
         error: { code: "UPSTREAM_UNAVAILABLE", message: "The live audit service could not be reached.", retryable: true, fallbackOffer: null },
       });
     }
-  }, [fixture.fixtureId]);
+  }, [fixture.fixtureId, runtimeSettings]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -119,6 +140,11 @@ export function MisruleApp({ fixture, auditMode = "live" }: { fixture: PublicFix
         <i aria-hidden="true" /><span><strong>{status[0]}</strong><small>{status[1]}</small></span>
       </div>
 
+      <button className="settings-trigger" type="button" onClick={() => setSettingsOpen(true)} aria-haspopup="dialog">
+        <span>Settings</span>
+        <small>{runtimeSettings.provider === "openrouter" ? "OpenRouter" : "Compatible API"} · {runtimeSettings.model}</small>
+      </button>
+
       <div className="workspace">
         <ClockworkInstrument
           selectedStation={state.selectedStation}
@@ -171,6 +197,16 @@ export function MisruleApp({ fixture, auditMode = "live" }: { fixture: PublicFix
       ) : null}
 
       <WorldDrawer fixture={fixture} open={state.drawerOpen} onClose={() => dispatch({ type: "DRAWER_CLOSED" })} />
+      <RuntimeSettingsDialog
+        open={settingsOpen}
+        settings={runtimeSettings}
+        defaults={runtimeDefaults}
+        onClose={() => setSettingsOpen(false)}
+        onSave={(settings) => {
+          setRuntimeSettings(settings);
+          setSettingsOpen(false);
+        }}
+      />
       <AuditCurtain open={auditStatus === "running"} auditMode={auditMode} />
       <AuditFailureDialog
         error={auditStatus === "failed" ? state.audit.error : null}

@@ -99,6 +99,39 @@ describe("judge-visible vertical slice", () => {
     expect(screen.getByRole("button", { name: /Record Evidence/ })).toHaveFocus();
   });
 
+  it("keeps provider settings focus-contained and sends a session-only key", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => response });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<MisruleApp fixture={publicFixtureSchema.parse(ashglass)} />);
+    fireEvent.click(screen.getByRole("button", { name: "Open the Ashglass archive" }));
+
+    const settingsButton = screen.getByRole("button", { name: /SettingsOpenRouter/ });
+    settingsButton.focus();
+    fireEvent.click(settingsButton);
+    const dialog = screen.getByRole("dialog", { name: "Choose the reasoning provider." });
+    const provider = screen.getByLabelText("Provider");
+    await waitFor(() => expect(provider).toHaveFocus());
+    fireEvent.change(screen.getByLabelText("Model"), { target: { value: "openai/gpt-oss-120b:free" } });
+    fireEvent.change(screen.getByLabelText(/API key/), { target: { value: "session-secret" } });
+    provider.focus();
+    fireEvent.keyDown(provider, { key: "Tab", shiftKey: true });
+    expect(screen.getByRole("button", { name: "Use these settings" })).toHaveFocus();
+    fireEvent.click(screen.getByRole("button", { name: "Use these settings" }));
+    expect(dialog).not.toBeInTheDocument();
+    await waitFor(() => expect(settingsButton).toHaveFocus());
+
+    fireEvent.click(screen.getByRole("button", { name: /Set the world in motion/ }));
+    await screen.findByRole("button", { name: /The Dead Captain Returns in the Flesh/ });
+    const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    expect(request.runtime).toEqual({
+      provider: "openrouter",
+      apiEndpoint: "https://openrouter.ai/api/v1",
+      model: "openai/gpt-oss-120b:free",
+      apiKey: "session-secret",
+    });
+    expect(localStorage.length).toBe(0);
+  });
+
   it("contains a failed audit in a focus-restoring dialog", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       json: async () => ({

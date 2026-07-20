@@ -4,11 +4,15 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import OpenAI from "openai";
-import { zodTextFormat } from "openai/helpers/zod";
-import type { AuditErrorCode, AuditRequest, AuditResultDto, AuditSuccessResponse, PublicFixture } from "@/lib/contracts";
+import { zodResponseFormat } from "openai/helpers/zod";
+import type { AuditRequest, AuditResultDto, AuditSuccessResponse, PublicFixture } from "@/lib/contracts";
+import { AuditServiceError } from "@/lib/audit-errors";
 import { FixtureRepositoryError, loadPublicFixture } from "@/lib/fixture-catalog.server";
 import { deterministicMockOutput } from "@/lib/mock-audit.server";
 import { modelAuditOutputSchema, validateModelOutputSemantics, type ModelAuditOutput } from "@/lib/model-output.server";
+import { resolveRuntimeSettings, type ResolvedRuntimeSettings } from "@/lib/runtime-settings.server";
+
+export { AuditServiceError } from "@/lib/audit-errors";
 
 export const PROMPT_VERSION = "misrule-audit/v1";
 export const MODEL_SCHEMA_VERSION = "model-output/v1";
@@ -24,6 +28,8 @@ export type AuditModelInput = {
 
 export type GatewayResult = {
   output: unknown;
+  provider: string;
+  endpointHost: string;
   requestedModel: string;
   returnedModel: string;
   rawResponse: unknown;
@@ -31,17 +37,6 @@ export type GatewayResult = {
 
 export interface AuditModelGateway {
   generate(input: AuditModelInput): Promise<GatewayResult>;
-}
-
-export class AuditServiceError extends Error {
-  constructor(
-    readonly code: AuditErrorCode,
-    message: string,
-    readonly status: number,
-    readonly retryable: boolean,
-  ) {
-    super(message);
-  }
 }
 
 export function buildModelInput(fixture: PublicFixture): AuditModelInput {
@@ -66,7 +61,7 @@ export function buildModelInput(fixture: PublicFixture): AuditModelInput {
   };
 }
 
-function normalize(output: ModelAuditOutput, fixture: PublicFixture, requestedModel: string, returnedModel: string): AuditResultDto {
+function normalize(output: ModelAuditOutput, fixture: PublicFixture, gateway: GatewayResult): AuditResultDto {
   const rules = new Map(fixture.rules.map((rule) => [rule.ruleId, rule]));
   const spans = new Map(fixture.spans.map((span) => [span.spanId, span]));
   return {
@@ -76,9 +71,9 @@ function normalize(output: ModelAuditOutput, fixture: PublicFixture, requestedMo
     fixtureVersion: fixture.fixtureVersion,
     createdAt: new Date().toISOString(),
     source:
-      requestedModel === "deterministic-mock"
+      gateway.requestedModel === "deterministic-mock"
         ? { mode: "mock", requestedModel: "deterministic-mock", model: "deterministic-mock" }
-        : { mode: "live", requestedModel, model: returnedModel },
+        : { mode: "live", requestedModel: gateway.requestedModel, model: gateway.returnedModel },
     findings: output.findings.map((finding, index) => ({
       id: `finding-${String(index + 1).padStart(2, "0")}`,
       kind: finding.kind,
@@ -106,36 +101,58 @@ function classifyProviderError(error: unknown): AuditServiceError {
   return new AuditServiceError("UPSTREAM_UNAVAILABLE", "The live audit service could not be reached.", 502, true);
 }
 
-export class OpenAIAuditGateway implements AuditModelGateway {
+export class OpenAICompatibleAuditGateway implements AuditModelGateway {
   private readonly client: OpenAI;
 
-  constructor(
-    apiKey: string,
-    private readonly model = "gpt-5.6-sol",
-  ) {
-    this.client = new OpenAI({ apiKey, timeout: 60_000, maxRetries: 0 });
+  constructor(private readonly settings: ResolvedRuntimeSettings) {
+    this.client = new OpenAI({
+      apiKey: settings.apiKey,
+      baseURL: settings.apiEndpoint,
+      timeout: 60_000,
+      maxRetries: 0,
+      defaultHeaders:
+        settings.provider === "openrouter"
+          ? { "HTTP-Referer": "https://github.com/electrixdreams/misrule", "X-OpenRouter-Title": "Misrule" }
+          : undefined,
+    });
   }
 
   async generate(input: AuditModelInput): Promise<GatewayResult> {
     try {
-      const response = await this.client.responses.parse({
-        model: this.model,
-        reasoning: { effort: "medium" },
-        store: false,
-        instructions:
-          "Audit only the supplied fictional-world rules and narrative spans. Surface contradictions only when the cited path closes under the stated rules. Preserve unresolved evidence as ambiguity when one missing fact supports both a contradiction and non-contradiction reading. Cite exact supplied IDs, invent no exceptions or facts, and return only the strict schema.",
-        input: JSON.stringify(input),
-        text: { format: zodTextFormat(modelAuditOutputSchema, "misrule_audit") },
-      });
-
-      if (response.status === "incomplete") throw new AuditServiceError("MODEL_OUTPUT_INCOMPLETE", "The model response was incomplete.", 502, true);
-      const refusal = response.output
-        .filter((item) => item.type === "message")
-        .flatMap((item) => item.content)
-        .find((content) => content.type === "refusal");
-      if (refusal) throw new AuditServiceError("MODEL_REFUSAL", "The model declined the audit.", 422, false);
-      if (!response.output_parsed) throw new AuditServiceError("MALFORMED_OUTPUT", "The model returned no parseable audit.", 422, true);
-      return { output: response.output_parsed, requestedModel: this.model, returnedModel: response.model, rawResponse: response };
+      const request = {
+        model: this.settings.model,
+        messages: [
+          {
+            role: "system" as const,
+            content:
+              "Audit only the supplied fictional-world rules and narrative spans. Surface contradictions only when the cited path closes under the stated rules. Preserve unresolved evidence as ambiguity when one missing fact supports both a contradiction and non-contradiction reading. Cite exact supplied IDs, invent no exceptions or facts, and return only the strict schema.",
+          },
+          { role: "user" as const, content: JSON.stringify(input) },
+        ],
+        response_format: zodResponseFormat(modelAuditOutputSchema, "misrule_audit"),
+        max_completion_tokens: 16_000,
+        ...(this.settings.provider === "openrouter" ? { provider: { require_parameters: true } } : {}),
+      };
+      const response = await this.client.chat.completions.create(request);
+      const choice = response.choices[0];
+      if (!choice) throw new AuditServiceError("MODEL_OUTPUT_INCOMPLETE", "The model returned no completion choice.", 502, true);
+      if (choice.finish_reason === "length") throw new AuditServiceError("MODEL_OUTPUT_INCOMPLETE", "The model response exceeded its output limit.", 502, true);
+      if (choice.message.refusal) throw new AuditServiceError("MODEL_REFUSAL", "The model declined the audit.", 422, false);
+      if (!choice.message.content) throw new AuditServiceError("MALFORMED_OUTPUT", "The model returned no parseable audit.", 422, true);
+      let output: unknown;
+      try {
+        output = JSON.parse(choice.message.content);
+      } catch {
+        throw new AuditServiceError("MALFORMED_OUTPUT", "The model returned invalid JSON.", 422, true);
+      }
+      return {
+        output,
+        provider: this.settings.provider,
+        endpointHost: this.settings.endpointHost,
+        requestedModel: this.settings.model,
+        returnedModel: response.model,
+        rawResponse: response,
+      };
     } catch (error) {
       throw classifyProviderError(error);
     }
@@ -144,7 +161,14 @@ export class OpenAIAuditGateway implements AuditModelGateway {
 
 export class MockAuditGateway implements AuditModelGateway {
   async generate(): Promise<GatewayResult> {
-    return { output: deterministicMockOutput, requestedModel: "deterministic-mock", returnedModel: "deterministic-mock", rawResponse: { mode: "mock", output: deterministicMockOutput } };
+    return {
+      output: deterministicMockOutput,
+      provider: "deterministic-mock",
+      endpointHost: "local",
+      requestedModel: "deterministic-mock",
+      returnedModel: "deterministic-mock",
+      rawResponse: { mode: "mock", output: deterministicMockOutput },
+    };
   }
 }
 
@@ -176,7 +200,7 @@ export async function executeLiveAudit(
   const semanticIssues = validateModelOutputSemantics(shape.data, fixture);
   if (semanticIssues.length > 0) throw new AuditServiceError("INVALID_CITATIONS", "The model output contained invalid or incomplete evidence paths.", 422, true);
 
-  const audit = normalize(shape.data, fixture, gatewayResult.requestedModel, gatewayResult.returnedModel);
+  const audit = normalize(shape.data, fixture, gatewayResult);
   const totalMs = Date.now() - started;
   await preserveEvidence(dependencies.evidenceDirectory, {
     evidenceVersion: "misrule-route-proof/v1",
@@ -184,6 +208,8 @@ export async function executeLiveAudit(
     fixtureDigest: createHash("sha256").update(JSON.stringify(fixture)).digest("hex"),
     promptVersion: PROMPT_VERSION,
     modelSchemaVersion: MODEL_SCHEMA_VERSION,
+    provider: gatewayResult.provider,
+    endpointHost: gatewayResult.endpointHost,
     requestedModel: gatewayResult.requestedModel,
     returnedModel: gatewayResult.returnedModel,
     modelInput: input,
@@ -195,8 +221,7 @@ export async function executeLiveAudit(
   return { ok: true, requestId: request.clientRequestId, audit, timing: { totalMs } };
 }
 
-export function createDefaultGateway(): AuditModelGateway {
+export function createDefaultGateway(request: AuditRequest): AuditModelGateway {
   if (process.env.MISRULE_AUDIT_MODE === "mock") return new MockAuditGateway();
-  if (!process.env.OPENAI_API_KEY) throw new AuditServiceError("SERVICE_MISCONFIGURED", "Live audit access is not configured.", 503, false);
-  return new OpenAIAuditGateway(process.env.OPENAI_API_KEY, process.env.OPENAI_MODEL || "gpt-5.6-sol");
+  return new OpenAICompatibleAuditGateway(resolveRuntimeSettings(request));
 }

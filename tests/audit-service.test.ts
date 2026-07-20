@@ -1,11 +1,16 @@
-import { describe, expect, it } from "vitest";
+// @vitest-environment node
+
+import { afterEach, describe, expect, it, vi } from "vitest";
 import ashglass from "@/fixtures/ashglass-clocktower-v1/input.json";
 import { publicFixtureSchema } from "@/lib/contracts";
-import { AuditServiceError, MockAuditGateway, buildModelInput, executeLiveAudit, type AuditModelGateway } from "@/lib/audit-service.server";
+import { deterministicMockOutput } from "@/lib/mock-audit.server";
+import { AuditServiceError, MockAuditGateway, OpenAICompatibleAuditGateway, buildModelInput, executeLiveAudit, type AuditModelGateway } from "@/lib/audit-service.server";
 
 const request = { schemaVersion: "audit-api/v1" as const, fixtureId: "ashglass-clocktower-v1", clientRequestId: "service-test", intent: { mode: "live" as const } };
 
 describe("audit service", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   it("projects only public model input", () => {
     const projected = buildModelInput(publicFixtureSchema.parse(ashglass));
     const serialized = JSON.stringify(projected);
@@ -25,7 +30,7 @@ describe("audit service", () => {
   });
 
   it("types malformed output before it reaches a client DTO", async () => {
-    const gateway: AuditModelGateway = { generate: async () => ({ output: { wrong: true }, requestedModel: "broken", returnedModel: "broken", rawResponse: {} }) };
+    const gateway: AuditModelGateway = { generate: async () => ({ output: { wrong: true }, provider: "test", endpointHost: "test", requestedModel: "broken", returnedModel: "broken", rawResponse: {} }) };
     await expect(executeLiveAudit(request, { gateway })).rejects.toMatchObject({ code: "MALFORMED_OUTPUT", status: 422 });
   });
 
@@ -39,5 +44,35 @@ describe("audit service", () => {
 
   it("rejects captured intent because no truthful capture exists", async () => {
     await expect(executeLiveAudit({ ...request, intent: { mode: "captured", offerToken: "signed-but-no-capture" } }, { gateway: new MockAuditGateway() })).rejects.toEqual(expect.any(AuditServiceError));
+  });
+
+  it("sends OpenRouter a strict chat-completions request without putting the key in the body", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      id: "generation-test",
+      object: "chat.completion",
+      created: 1,
+      model: "openai/gpt-oss-120b:free",
+      choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(deterministicMockOutput) } }],
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const gateway = new OpenAICompatibleAuditGateway({
+      provider: "openrouter",
+      apiEndpoint: "https://openrouter.ai/api/v1",
+      endpointHost: "openrouter.ai",
+      model: "openai/gpt-oss-120b:free",
+      apiKey: "session-secret",
+      credentialSource: "request",
+    });
+
+    const generated = await gateway.generate(buildModelInput(publicFixtureSchema.parse(ashglass)));
+    expect(generated).toMatchObject({ provider: "openrouter", endpointHost: "openrouter.ai", requestedModel: "openai/gpt-oss-120b:free" });
+    expect(String(fetchMock.mock.calls[0][0])).toBe("https://openrouter.ai/api/v1/chat/completions");
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    expect(body).toMatchObject({
+      model: "openai/gpt-oss-120b:free",
+      provider: { require_parameters: true },
+      response_format: { type: "json_schema", json_schema: { name: "misrule_audit", strict: true } },
+    });
+    expect(JSON.stringify(body)).not.toContain("session-secret");
   });
 });

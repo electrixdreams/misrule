@@ -134,6 +134,23 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
 .status-plaque[data-state="accepted"] > i { background: var(--brass-light); box-shadow: 0 0 14px rgba(224,193,123,.65); }
 .status-plaque[data-state="blocked"] > i { background: var(--rust-bright); box-shadow: 0 0 14px rgba(239,121,100,.6); }
 
+.settings-trigger {
+  position: fixed;
+  top: clamp(4.8rem, 8.5vh, 5.7rem);
+  right: clamp(1rem, 2.3vw, 2.4rem);
+  z-index: 29;
+  max-width: 21rem;
+  padding: .48rem .8rem;
+  border: 1px solid rgba(184,217,214,.28);
+  color: #dce9e5;
+  background: linear-gradient(180deg, rgba(28,39,39,.92), rgba(8,12,12,.94));
+  cursor: pointer;
+  text-align: right;
+  box-shadow: 0 8px 20px rgba(0,0,0,.28);
+}
+.settings-trigger span { display: block; color: var(--moonstone-bright); font-size: .69rem; font-weight: 650; }
+.settings-trigger small { display: block; max-width: 19rem; overflow: hidden; color: #94a39e; font-size: .58rem; text-overflow: ellipsis; white-space: nowrap; }
+
 .workspace {
   height: 100%;
   display: grid;
@@ -379,6 +396,41 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
 .empty-volume strong { display: block; }
 .drawer > button { float: right; margin-top: 1rem; padding: .65rem .9rem; border: 1px solid #755534; color: #f4ead5; background: #553821; cursor: pointer; }
 
+.settings-backdrop { background: radial-gradient(circle at 54% 40%, rgba(92,147,144,.13), transparent 28rem), rgba(4,7,8,.91); }
+.settings-dialog {
+  width: min(42rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  padding: 2rem;
+  border: 1px solid rgba(184,217,214,.48);
+  border-left: .42rem double var(--moonstone);
+  color: #eee7d8;
+  background: linear-gradient(145deg, #172324, #0d1213 58%, #2a2118);
+  box-shadow: 0 30px 80px rgba(0,0,0,.72), inset 0 0 48px rgba(184,217,214,.05);
+}
+.settings-dialog > span { color: var(--moonstone); font-size: .68rem; letter-spacing: .04em; }
+.settings-dialog h2 { margin: .55rem 0; font-family: var(--display); font-size: clamp(1.9rem, 4vw, 2.8rem); font-weight: 500; }
+.settings-dialog > p { margin: 0 0 1.25rem; color: #aebbb5; font-family: var(--text); font-size: 1rem; line-height: 1.5; }
+.settings-dialog form { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 1.2rem; }
+.settings-dialog label { display: grid; gap: .38rem; align-content: start; }
+.settings-dialog label > span { color: #e6dcc8; font-size: .71rem; font-weight: 650; }
+.settings-dialog input, .settings-dialog select {
+  min-width: 0;
+  width: 100%;
+  padding: .7rem .75rem;
+  border: 1px solid rgba(184,217,214,.34);
+  border-radius: 0;
+  color: #f3eee4;
+  background: #080d0e;
+  font: .82rem var(--ui);
+}
+.settings-dialog small { color: #82918c; font-size: .6rem; line-height: 1.4; }
+.settings-dialog aside { grid-column: 1 / -1; padding: .7rem .8rem; border-left: .25rem solid var(--brass); color: #a9b5af; background: rgba(224,193,123,.06); font-family: var(--text); font-size: .84rem; line-height: 1.45; overflow-wrap: anywhere; }
+.settings-dialog aside strong { color: #ddd2bd; font-weight: 500; }
+.settings-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: .65rem; margin-top: .25rem; }
+.settings-actions button { padding: .66rem .9rem; border: 1px solid rgba(184,217,214,.4); color: #e6e1d7; background: #172020; cursor: pointer; }
+.settings-actions button:last-child { border-color: var(--brass-light); background: linear-gradient(180deg, #594124, #151b1b); }
+
 .audit-curtain { z-index: 65; grid-template-columns: 15rem minmax(18rem, 30rem); gap: 2.5rem; background: rgba(3,6,7,.88); }
 .audit-dial { position: relative; width: 15rem; aspect-ratio: 1; border: 1px solid rgba(224,193,123,.35); border-radius: 50%; box-shadow: inset 0 0 60px #000, 0 0 45px rgba(116,173,170,.1); }
 .audit-dial::before, .audit-dial::after, .audit-dial i { content: ""; position: absolute; border: 1px solid rgba(184,217,214,.25); border-radius: 50%; animation: audit-turn 2s linear infinite; }
@@ -409,6 +461,8 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   .world-seal small { display: none; }
   .status-plaque { top: 1rem; right: .7rem; max-width: 10.7rem; }
   .status-plaque small { display: none; }
+  .settings-trigger { top: 4.25rem; right: .7rem; max-width: 10.7rem; }
+  .settings-trigger small { display: none; }
   .workspace, .misrule-shell[data-quieted] .workspace { grid-template-rows: minmax(28rem, 52vh) minmax(48rem, auto); padding-inline: .55rem; }
   .instrument, .misrule-shell[data-quieted] .instrument { width: min(29rem, 95vw); }
   .instrument-title { top: 62%; width: 13rem; }
@@ -431,6 +485,9 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   .entry-tower { display: none; }
   .audit-curtain { grid-template-columns: 1fr; padding: 2rem; text-align: center; }
   .audit-dial { width: 11rem; }
+  .settings-dialog { padding: 1.35rem; }
+  .settings-dialog form { grid-template-columns: 1fr; }
+  .settings-dialog aside, .settings-actions { grid-column: 1; }
 }
 
 @media (max-height: 760px) and (min-width: 1081px) {

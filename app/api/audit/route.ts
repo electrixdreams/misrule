@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
   try {
     const response = await executeLiveAudit(parsed.data, {
-      gateway: createDefaultGateway(),
+      gateway: createDefaultGateway(parsed.data),
       evidenceDirectory: process.env.MISRULE_EVIDENCE_DIR,
     });
     return NextResponse.json(response, { status: 200, headers: { "Cache-Control": "no-store" } });
