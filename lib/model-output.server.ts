@@ -75,7 +75,7 @@ const transportSupportedReadingSchema = z
   })
   .strict();
 
-const transportFindingSchema = z
+export const modelFindingTransportSchema = z
   .object({
     kind: z.enum(["contradiction", "ambiguity"]),
     title: z.string(),
@@ -92,7 +92,7 @@ const transportFindingSchema = z
 export const modelAuditTransportSchema = z
   .object({
     schema_version: z.literal("model-output/v1"),
-    findings: z.array(transportFindingSchema),
+    findings: z.array(modelFindingTransportSchema),
     unresolved_questions: z.array(z.string()),
   })
   .strict();
@@ -118,7 +118,8 @@ export type SemanticValidationIssue = {
     | "SPAN_STEP_NOT_CITED"
     | "CITED_RULE_NOT_TRACED"
     | "CITED_SPAN_NOT_TRACED"
-    | "INVALID_READING_OUTCOMES";
+    | "INVALID_READING_OUTCOMES"
+    | "DUPLICATE_FINDING";
   message: string;
 };
 
@@ -130,8 +131,21 @@ export function validateModelOutputSemantics(output: ModelAuditOutput, pack: Wor
   const issues: SemanticValidationIssue[] = [];
   const knownRules = new Set(pack.rules.map((rule) => rule.ruleId));
   const knownSpans = new Set(pack.spans.map((span) => span.spanId));
+  const seenFindings = new Map<string, number>();
 
   output.findings.forEach((finding, findingIndex) => {
+    const identity = `${finding.kind}|${[...finding.rule_ids].sort().join(",")}|${[...finding.span_ids].sort().join(",")}`;
+    const firstIndex = seenFindings.get(identity);
+    if (firstIndex !== undefined) {
+      issues.push({
+        findingIndex,
+        code: "DUPLICATE_FINDING",
+        message: `Finding duplicates finding ${firstIndex + 1} by kind and cited evidence sets.`,
+      });
+    } else {
+      seenFindings.set(identity, findingIndex);
+    }
+
     for (const duplicate of [...duplicates(finding.rule_ids), ...duplicates(finding.span_ids)]) {
       issues.push({ findingIndex, code: "DUPLICATE_CITATION", message: `Citation ${duplicate} is duplicated.` });
     }

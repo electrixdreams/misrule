@@ -6,17 +6,23 @@ import path from "node:path";
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import type { AuditRequest, AuditResultDto, AuditSuccessResponse } from "@/lib/contracts";
+import { acceptedAdjudicationFromCandidates, adjudicationOutputTransportSchema, validateAdjudicationOutput } from "@/lib/adjudication-output.server";
 import { AuditServiceError } from "@/lib/audit-errors";
+import { candidateOutputFromModelOutput, candidateOutputTransportSchema, modelOutputFromCandidates, validateCandidateOutput, type CanonicalCandidate } from "@/lib/candidate-output.server";
 import { WorldPackRepositoryError, loadBundledWorldPack } from "@/lib/world-pack-catalog.server";
 import { deterministicMockOutput } from "@/lib/mock-audit.server";
-import { modelAuditOutputSchema, modelAuditTransportSchema, validateModelOutputSemantics, type ModelAuditOutput } from "@/lib/model-output.server";
+import { modelAuditOutputSchema, validateModelOutputSemantics, type ModelAuditOutput } from "@/lib/model-output.server";
 import { resolveRuntimeSettings, type ResolvedRuntimeSettings } from "@/lib/runtime-settings.server";
 import { MAX_WORLD_PACK_BYTES, serializedWorldPackByteLength, worldPackSchema, type WorldPack } from "@/lib/world-pack";
 
 export { AuditServiceError } from "@/lib/audit-errors";
 
-export const PROMPT_VERSION = "misrule-audit/v2";
+export const CANDIDATE_PROMPT_VERSION = "misrule-candidates/v1";
+export const ADJUDICATION_PROMPT_VERSION = "misrule-adjudication/v1";
+export const PROMPT_VERSION = CANDIDATE_PROMPT_VERSION;
 export const MODEL_SCHEMA_VERSION = "model-output/v1";
+export const CANDIDATE_SCHEMA_VERSION = "candidate-output/v1";
+export const ADJUDICATION_SCHEMA_VERSION = "adjudication-output/v1";
 
 export type AuditModelInput = {
   schemaVersion: "audit-input/v2";
@@ -27,17 +33,35 @@ export type AuditModelInput = {
   spans: Array<{ spanId: string; bookId: string; source: { label: string; scene: string; chapter?: string }; text: string }>;
 };
 
-export type GatewayResult = {
+export type AuditAdjudicationInput = {
+  schemaVersion: "audit-adjudication-input/v1";
+  pack: { packId: string; packVersion: string };
+  world: { worldId: string; title: string; premise: string };
+  candidates: Array<{
+    candidateId: string;
+    proposedFinding: CanonicalCandidate["proposed_finding"];
+    citedRules: Array<{ ruleId: string; title: string; type: string; scope: { kind: "world" | "book"; refId: string }; text: string }>;
+    citedSpans: Array<{ spanId: string; bookId: string; source: { label: string; scene: string; chapter?: string }; text: string }>;
+    citedBooks: Array<{ bookId: string; title: string; sourceLabel: string }>;
+  }>;
+};
+
+export type GatewayStageResult = {
+  stage: "candidate-generation" | "focused-adjudication";
+  promptVersion: string;
+  schemaVersion: string;
   output: unknown;
   provider: string;
   endpointHost: string;
   requestedModel: string;
   returnedModel: string;
   rawResponse: unknown;
+  latencyMs: number;
 };
 
 export interface AuditModelGateway {
-  generate(input: AuditModelInput): Promise<GatewayResult>;
+  generateCandidates(input: AuditModelInput): Promise<GatewayStageResult>;
+  adjudicateCandidates(input: AuditAdjudicationInput): Promise<GatewayStageResult>;
 }
 
 export function buildModelInput(pack: WorldPack): AuditModelInput {
@@ -62,7 +86,44 @@ export function buildModelInput(pack: WorldPack): AuditModelInput {
   };
 }
 
-export function normalizeAudit(output: ModelAuditOutput, pack: WorldPack, gateway: GatewayResult): AuditResultDto {
+export function buildAdjudicationInput(pack: WorldPack, candidates: CanonicalCandidate[]): AuditAdjudicationInput {
+  const rules = new Map(pack.rules.map((rule) => [rule.ruleId, rule]));
+  const spans = new Map(pack.spans.map((span) => [span.spanId, span]));
+  const books = new Map(pack.books.map((book) => [book.bookId, book]));
+  return {
+    schemaVersion: "audit-adjudication-input/v1",
+    pack: { packId: pack.packId, packVersion: pack.packVersion },
+    world: { worldId: pack.world.worldId, title: pack.world.title, premise: pack.world.premise },
+    candidates: candidates.map((candidate) => {
+      const citedSpans = candidate.proposed_finding.span_ids.map((spanId) => {
+        const span = spans.get(spanId)!;
+        return { spanId: span.spanId, bookId: span.bookId, source: span.source, text: span.text };
+      });
+      const citedBookIds = [...new Set(citedSpans.map((span) => span.bookId))];
+      return {
+        candidateId: candidate.candidate_id,
+        proposedFinding: candidate.proposed_finding,
+        citedRules: candidate.proposed_finding.rule_ids.map((ruleId) => {
+          const rule = rules.get(ruleId)!;
+          return {
+            ruleId: rule.ruleId,
+            title: rule.title,
+            type: rule.type,
+            scope: rule.scope.kind === "world" ? { kind: "world" as const, refId: rule.scope.worldId } : { kind: "book" as const, refId: rule.scope.bookId },
+            text: rule.text,
+          };
+        }),
+        citedSpans,
+        citedBooks: citedBookIds.map((bookId) => {
+          const book = books.get(bookId)!;
+          return { bookId: book.bookId, title: book.title, sourceLabel: book.sourceLabel };
+        }),
+      };
+    }),
+  };
+}
+
+export function normalizeAudit(output: ModelAuditOutput, pack: WorldPack, gateway: GatewayStageResult): AuditResultDto {
   const rules = new Map(pack.rules.map((rule) => [rule.ruleId, rule]));
   const spans = new Map(pack.spans.map((span) => [span.spanId, span]));
   return {
@@ -121,27 +182,27 @@ export class OpenAICompatibleAuditGateway implements AuditModelGateway {
     });
   }
 
-  async generate(input: AuditModelInput): Promise<GatewayResult> {
+  private async requestStructuredOutput(
+    stage: GatewayStageResult["stage"],
+    promptVersion: string,
+    schemaVersion: string,
+    schemaName: string,
+    schema: typeof candidateOutputTransportSchema | typeof adjudicationOutputTransportSchema,
+    systemInstructions: string[],
+    input: AuditModelInput | AuditAdjudicationInput,
+  ): Promise<GatewayStageResult> {
+    const started = Date.now();
     try {
       const request = {
         model: this.settings.model,
         messages: [
           {
             role: "system" as const,
-            content: [
-              "Audit only the supplied fictional-world rules and narrative spans.",
-              "Return schema_version exactly as model-output/v1.",
-              "Surface contradictions only when the cited path closes under the stated rules.",
-              "Also surface each legitimate ambiguity when one specific missing fact supports both a contradiction_supported reading and a contradiction_not_supported reading; do not replace such findings with unresolved_questions.",
-              "For contradictions, missing_fact and why_unresolved must be null and supported_readings must be empty.",
-              "For ambiguities, missing_fact and why_unresolved must be non-empty and supported_readings must contain exactly two entries, one for each allowed outcome.",
-              "Every cited rule or span must appear in path_steps and every rule/span path step must be cited.",
-              "Cite exact supplied IDs, invent no exceptions or facts, and return only the strict schema.",
-            ].join(" "),
+            content: systemInstructions.join(" "),
           },
           { role: "user" as const, content: JSON.stringify(input) },
         ],
-        response_format: zodResponseFormat(modelAuditTransportSchema, "misrule_audit"),
+        response_format: zodResponseFormat(schema, schemaName),
         ...(this.settings.provider === "openrouter"
           ? { max_tokens: 16_000, provider: { require_parameters: true } }
           : { max_completion_tokens: 16_000 }),
@@ -161,30 +222,106 @@ export class OpenAICompatibleAuditGateway implements AuditModelGateway {
         // browser or attempting a repair.
       }
       return {
+        stage,
+        promptVersion,
+        schemaVersion,
         output,
         provider: this.settings.provider,
         endpointHost: this.settings.endpointHost,
         requestedModel: this.settings.model,
         returnedModel: response.model,
         rawResponse: response,
+        latencyMs: Date.now() - started,
       };
     } catch (error) {
       throw classifyProviderError(error);
     }
   }
+
+  async generateCandidates(input: AuditModelInput): Promise<GatewayStageResult> {
+    return this.requestStructuredOutput(
+      "candidate-generation",
+      CANDIDATE_PROMPT_VERSION,
+      CANDIDATE_SCHEMA_VERSION,
+      "misrule_candidates",
+      candidateOutputTransportSchema,
+      [
+        "Audit only the supplied fictional-world rules and narrative spans.",
+        "Return schema_version exactly as candidate-output/v1.",
+        "Optimize for recall: surface every plausible contradiction or legitimate two-sided ambiguity as a candidate.",
+        "Use only supplied evidence, cite exact rule and span IDs, include explicit path steps, and invent no exceptions, facts, identities, or timing bridges.",
+        "For contradictions, missing_fact and why_unresolved must be null and supported_readings must be empty.",
+        "For ambiguities, missing_fact and why_unresolved must be non-empty and supported_readings must contain exactly two entries, one contradiction_supported and one contradiction_not_supported.",
+        "Every cited rule or span must appear in path_steps and every rule/span path step must be cited.",
+        "Do not choose candidate IDs; return only the strict schema.",
+      ],
+      input,
+    );
+  }
+
+  async adjudicateCandidates(input: AuditAdjudicationInput): Promise<GatewayStageResult> {
+    return this.requestStructuredOutput(
+      "focused-adjudication",
+      ADJUDICATION_PROMPT_VERSION,
+      ADJUDICATION_SCHEMA_VERSION,
+      "misrule_adjudication",
+      adjudicationOutputTransportSchema,
+      [
+        "Adjudicate only the supplied validated candidates and exact cited material.",
+        "Return schema_version exactly as adjudication-output/v1 and one decision for every candidate ID.",
+        "Optimize for precision: inspect cited rules and spans independently rather than trusting candidate explanations.",
+        "Accept a contradiction only when the cited rules apply, the cited path jointly forces a violation, and no rule-consistent reading remains.",
+        "Accept an ambiguity only when one specific missing fact makes both contradiction_supported and contradiction_not_supported readings compatible with the cited text.",
+        "Reject consistent distractors, scope errors, unresolved identity or timing assumptions, invented bridges, duplicate or subsumed routes, and non-two-sided ambiguities.",
+        "Accepted findings may cite only a subset of that candidate's cited rules and spans; never add new evidence.",
+        "Return only the strict schema.",
+      ],
+      input,
+    );
+  }
 }
 
 export class MockAuditGateway implements AuditModelGateway {
-  constructor(private readonly output: unknown = deterministicMockOutput) {}
+  constructor(
+    private readonly output: unknown = deterministicMockOutput,
+    private readonly adjudicationOutput?: unknown,
+  ) {}
 
-  async generate(): Promise<GatewayResult> {
+  async generateCandidates(_input?: AuditModelInput): Promise<GatewayStageResult> {
+    void _input;
+    const output = candidateOutputFromModelOutput(this.output);
     return {
-      output: this.output,
+      stage: "candidate-generation",
+      promptVersion: CANDIDATE_PROMPT_VERSION,
+      schemaVersion: CANDIDATE_SCHEMA_VERSION,
+      output,
       provider: "deterministic-mock",
       endpointHost: "local",
       requestedModel: "deterministic-mock",
       returnedModel: "deterministic-mock",
-      rawResponse: { mode: "mock", output: this.output },
+      rawResponse: { mode: "mock", output },
+      latencyMs: 0,
+    };
+  }
+
+  async adjudicateCandidates(input: AuditAdjudicationInput): Promise<GatewayStageResult> {
+    const output = this.adjudicationOutput ?? acceptedAdjudicationFromCandidates(
+      input.candidates.map((candidate) => ({
+        candidate_id: candidate.candidateId,
+        proposed_finding: candidate.proposedFinding,
+      })),
+    );
+    return {
+      stage: "focused-adjudication",
+      promptVersion: ADJUDICATION_PROMPT_VERSION,
+      schemaVersion: ADJUDICATION_SCHEMA_VERSION,
+      output,
+      provider: "deterministic-mock",
+      endpointHost: "local",
+      requestedModel: "deterministic-mock",
+      returnedModel: "deterministic-mock",
+      rawResponse: { mode: "mock", output },
+      latencyMs: 0,
     };
   }
 }
@@ -194,6 +331,27 @@ async function preserveEvidence(directory: string | undefined, evidence: Record<
   await mkdir(directory, { recursive: true });
   const filename = `audit-${new Date().toISOString().replaceAll(":", "-")}-${randomUUID()}.json`;
   await writeFile(path.join(directory, filename), `${JSON.stringify(evidence, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+}
+
+function validationErrorCode(issues: unknown[]) {
+  const serialized = JSON.stringify(issues);
+  return /UNKNOWN_|CITATION|TRACED|STEP_|READING|DUPLICATE_FINDING|ADDED_/.test(serialized) ? "INVALID_CITATIONS" : "MALFORMED_OUTPUT";
+}
+
+function validationErrorMessage(code: "INVALID_CITATIONS" | "MALFORMED_OUTPUT") {
+  return code === "INVALID_CITATIONS"
+    ? "The model output contained invalid or incomplete evidence paths."
+    : "The model output did not match the required audit structure.";
+}
+
+function validateFinalOutput(output: ModelAuditOutput, pack: WorldPack) {
+  const shape = modelAuditOutputSchema.safeParse(output);
+  if (!shape.success) {
+    return { ok: false as const, issues: shape.error.issues.map((issue) => ({ code: issue.code, path: issue.path, message: issue.message })) };
+  }
+  const semanticIssues = validateModelOutputSemantics(shape.data, pack);
+  if (semanticIssues.length > 0) return { ok: false as const, issues: semanticIssues };
+  return { ok: true as const, output: shape.data };
 }
 
 export async function executeLiveAudit(
@@ -223,53 +381,126 @@ export async function executeLiveAudit(
   }
 
   const started = Date.now();
-  const input = buildModelInput(pack);
-  const gatewayResult = await dependencies.gateway.generate(input);
+  const candidateInput = buildModelInput(pack);
+  const candidateStage = await dependencies.gateway.generateCandidates(candidateInput);
   const evidenceBase = {
-    evidenceVersion: "misrule-route-proof/v1",
+    evidenceVersion: "misrule-route-proof/v2",
     clientRequestId: request.clientRequestId,
     packDigest: createHash("sha256").update(JSON.stringify(pack)).digest("hex"),
-    promptVersion: PROMPT_VERSION,
-    modelSchemaVersion: MODEL_SCHEMA_VERSION,
-    provider: gatewayResult.provider,
-    endpointHost: gatewayResult.endpointHost,
-    requestedModel: gatewayResult.requestedModel,
-    returnedModel: gatewayResult.returnedModel,
-    modelInput: input,
-    rawResponse: gatewayResult.rawResponse,
+    promptVersions: { candidates: CANDIDATE_PROMPT_VERSION, adjudication: ADJUDICATION_PROMPT_VERSION },
+    schemaVersions: { candidates: CANDIDATE_SCHEMA_VERSION, adjudication: ADJUDICATION_SCHEMA_VERSION, final: MODEL_SCHEMA_VERSION },
+    provider: candidateStage.provider,
+    endpointHost: candidateStage.endpointHost,
+    requestedModel: candidateStage.requestedModel,
+    returnedModel: candidateStage.returnedModel,
+    candidateInput,
+    rawCandidateResponse: candidateStage.rawResponse,
+    stageLatencyMs: { candidates: candidateStage.latencyMs, adjudication: null as number | null },
   };
-  const shape = modelAuditOutputSchema.safeParse(gatewayResult.output);
-  if (!shape.success) {
+
+  const candidateValidation = validateCandidateOutput(candidateStage.output, pack);
+  if (!candidateValidation.ok) {
+    const code = validationErrorCode(candidateValidation.issues);
     await preserveEvidence(evidenceEligible ? dependencies.evidenceDirectory : undefined, {
       ...evidenceBase,
+      canonicalCandidateValidation: { status: "FAIL", issues: candidateValidation.issues },
+      adjudicationInput: null,
+      rawAdjudicationResponse: null,
+      canonicalAdjudicationValidation: { status: "NOT_RUN" },
+      acceptedCount: 0,
+      rejectedCount: 0,
+      rejectionReasons: [],
       normalizedAudit: null,
-      validation: {
-        shape: "FAIL",
-        semantics: "NOT_RUN",
-        issues: shape.error.issues.map((issue) => ({ code: issue.code, path: issue.path, message: issue.message })),
-      },
-      latencyMs: Date.now() - started,
+      finalValidation: { status: "NOT_RUN" },
+      totalLatencyMs: Date.now() - started,
     });
-    throw new AuditServiceError("MALFORMED_OUTPUT", "The model output did not match the required audit structure.", 422, true);
-  }
-  const semanticIssues = validateModelOutputSemantics(shape.data, pack);
-  if (semanticIssues.length > 0) {
-    await preserveEvidence(evidenceEligible ? dependencies.evidenceDirectory : undefined, {
-      ...evidenceBase,
-      normalizedAudit: null,
-      validation: { shape: "PASS", semantics: "FAIL", issues: semanticIssues },
-      latencyMs: Date.now() - started,
-    });
-    throw new AuditServiceError("INVALID_CITATIONS", "The model output contained invalid or incomplete evidence paths.", 422, true);
+    throw new AuditServiceError(code, validationErrorMessage(code), 422, true);
   }
 
-  const audit = normalizeAudit(shape.data, pack, gatewayResult);
+  let finalOutput: ModelAuditOutput;
+  let adjudicationInput: AuditAdjudicationInput | null = null;
+  let adjudicationStage: GatewayStageResult | null = null;
+  let acceptedCount = 0;
+  let rejectedCount = 0;
+  let rejectionReasons: string[] = [];
+  let adjudicationValidationEvidence: Record<string, unknown> = { status: "SKIPPED_ZERO_CANDIDATES" };
+
+  if (candidateValidation.candidates.length === 0) {
+    finalOutput = modelOutputFromCandidates(candidateValidation.output);
+  } else {
+    adjudicationInput = buildAdjudicationInput(pack, candidateValidation.candidates);
+    adjudicationStage = await dependencies.gateway.adjudicateCandidates(adjudicationInput);
+    const adjudicationValidation = validateAdjudicationOutput(
+      adjudicationStage.output,
+      candidateValidation.candidates,
+      pack,
+      candidateValidation.output.unresolved_questions,
+    );
+    if (!adjudicationValidation.ok) {
+      const code = validationErrorCode(adjudicationValidation.issues);
+      await preserveEvidence(evidenceEligible ? dependencies.evidenceDirectory : undefined, {
+        ...evidenceBase,
+        adjudicationInput,
+        rawAdjudicationResponse: adjudicationStage.rawResponse,
+        stageLatencyMs: { candidates: candidateStage.latencyMs, adjudication: adjudicationStage.latencyMs },
+        canonicalCandidateValidation: { status: "PASS", candidateCount: candidateValidation.candidates.length },
+        canonicalAdjudicationValidation: { status: "FAIL", issues: adjudicationValidation.issues },
+        acceptedCount: 0,
+        rejectedCount: 0,
+        rejectionReasons: [],
+        normalizedAudit: null,
+        finalValidation: { status: "NOT_RUN" },
+        totalLatencyMs: Date.now() - started,
+      });
+      throw new AuditServiceError(code, validationErrorMessage(code), 422, true);
+    }
+    finalOutput = adjudicationValidation.finalOutput;
+    acceptedCount = adjudicationValidation.acceptedCount;
+    rejectedCount = adjudicationValidation.rejectedCount;
+    rejectionReasons = adjudicationValidation.rejectionReasons;
+    adjudicationValidationEvidence = {
+      status: "PASS",
+      decisionCount: adjudicationValidation.output.decisions.length,
+      acceptedCount,
+      rejectedCount,
+    };
+  }
+
+  const finalValidation = validateFinalOutput(finalOutput, pack);
+  if (!finalValidation.ok) {
+    const code = validationErrorCode(finalValidation.issues);
+    await preserveEvidence(evidenceEligible ? dependencies.evidenceDirectory : undefined, {
+      ...evidenceBase,
+      adjudicationInput,
+      rawAdjudicationResponse: adjudicationStage?.rawResponse ?? null,
+      stageLatencyMs: { candidates: candidateStage.latencyMs, adjudication: adjudicationStage?.latencyMs ?? null },
+      canonicalCandidateValidation: { status: "PASS", candidateCount: candidateValidation.candidates.length },
+      canonicalAdjudicationValidation: adjudicationValidationEvidence,
+      acceptedCount,
+      rejectedCount,
+      rejectionReasons,
+      normalizedAudit: null,
+      finalValidation: { status: "FAIL", issues: finalValidation.issues },
+      totalLatencyMs: Date.now() - started,
+    });
+    throw new AuditServiceError(code, validationErrorMessage(code), 422, true);
+  }
+
+  const audit = normalizeAudit(finalValidation.output, pack, candidateStage);
   const totalMs = Date.now() - started;
   await preserveEvidence(evidenceEligible ? dependencies.evidenceDirectory : undefined, {
     ...evidenceBase,
+    adjudicationInput,
+    rawAdjudicationResponse: adjudicationStage?.rawResponse ?? null,
+    stageLatencyMs: { candidates: candidateStage.latencyMs, adjudication: adjudicationStage?.latencyMs ?? null },
+    canonicalCandidateValidation: { status: "PASS", candidateCount: candidateValidation.candidates.length },
+    canonicalAdjudicationValidation: adjudicationValidationEvidence,
+    acceptedCount,
+    rejectedCount,
+    rejectionReasons,
     normalizedAudit: audit,
-    validation: { shape: "PASS", semantics: "PASS", issueCount: 0 },
-    latencyMs: totalMs,
+    finalValidation: { status: "PASS", issueCount: 0 },
+    totalLatencyMs: totalMs,
   });
   return { ok: true, requestId: request.clientRequestId, audit, timing: { totalMs } };
 }

@@ -1,14 +1,26 @@
 // @vitest-environment node
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import ashglass from "@/fixtures/ashglass-clocktower-v1/input.json";
 import portable from "@/tests/fixtures/portable-two-book-world-pack.json";
 import { worldPackSchema } from "@/lib/world-pack";
 import { deterministicMockOutput } from "@/lib/mock-audit.server";
-import { AuditServiceError, MockAuditGateway, OpenAICompatibleAuditGateway, buildModelInput, executeLiveAudit, type AuditModelGateway } from "@/lib/audit-service.server";
+import {
+  ADJUDICATION_PROMPT_VERSION,
+  ADJUDICATION_SCHEMA_VERSION,
+  AuditServiceError,
+  CANDIDATE_PROMPT_VERSION,
+  CANDIDATE_SCHEMA_VERSION,
+  MockAuditGateway,
+  OpenAICompatibleAuditGateway,
+  buildModelInput,
+  executeLiveAudit,
+  type AuditModelGateway,
+  type GatewayStageResult,
+} from "@/lib/audit-service.server";
 
 const request = {
   schemaVersion: "audit-api/v2" as const,
@@ -56,6 +68,42 @@ const portableOutput = {
   unresolved_questions: ["Which bell did NOTE-B reference?"],
 };
 
+function stageResult(stage: GatewayStageResult["stage"], output: unknown): GatewayStageResult {
+  return {
+    stage,
+    promptVersion: stage === "candidate-generation" ? CANDIDATE_PROMPT_VERSION : ADJUDICATION_PROMPT_VERSION,
+    schemaVersion: stage === "candidate-generation" ? CANDIDATE_SCHEMA_VERSION : ADJUDICATION_SCHEMA_VERSION,
+    output,
+    provider: "test",
+    endpointHost: "test",
+    requestedModel: "test-model",
+    returnedModel: "test-model",
+    rawResponse: { output },
+    latencyMs: 0,
+  };
+}
+
+function candidateOutputFrom(findings: unknown[] = portableOutput.findings, unresolvedQuestions: string[] = portableOutput.unresolved_questions) {
+  return {
+    schema_version: "candidate-output/v1" as const,
+    candidates: findings,
+    unresolved_questions: unresolvedQuestions,
+  };
+}
+
+function acceptDecision(candidateId: string, finding: unknown) {
+  return { candidate_id: candidateId, decision: "accept" as const, finding };
+}
+
+function rejectDecision(candidateId: string) {
+  return {
+    candidate_id: candidateId,
+    decision: "reject" as const,
+    rejection_reason: "consistent_with_rules" as const,
+    explanation: "The cited path remains consistent with the supplied rules.",
+  };
+}
+
 describe("audit service", () => {
   afterEach(() => vi.unstubAllGlobals());
 
@@ -90,19 +138,118 @@ describe("audit service", () => {
     expect(buildModelInput(pack).books.map((book) => book.bookId)).toEqual(["volume-dawn", "volume-dusk"]);
   });
 
+  it("accepts only adjudicated findings and treats a rejection as a successful zero-finding audit", async () => {
+    const pack = worldPackSchema.parse(portable);
+    const adjudicationOutput = { schema_version: "adjudication-output/v1" as const, decisions: [rejectDecision("candidate-01")] };
+    const response = await executeLiveAudit(
+      { ...request, clientRequestId: "reject-service", source: { kind: "inline", pack } },
+      { gateway: new MockAuditGateway({ ...portableOutput, findings: [portableOutput.findings[0]] }, adjudicationOutput) },
+    );
+    expect(response.audit.schemaVersion).toBe("audit-api/v2");
+    expect(response.audit.findings).toEqual([]);
+    expect(response.audit.unresolvedQuestions).toEqual(portableOutput.unresolved_questions);
+  });
+
+  it("skips adjudication when candidate generation returns zero candidates", async () => {
+    const adjudicateCandidates = vi.fn();
+    const gateway: AuditModelGateway = {
+      generateCandidates: async () => stageResult("candidate-generation", candidateOutputFrom([], ["No supported candidates were found."])),
+      adjudicateCandidates,
+    };
+    const response = await executeLiveAudit(request, { gateway });
+    expect(response.audit.findings).toEqual([]);
+    expect(response.audit.unresolvedQuestions).toEqual(["No supported candidates were found."]);
+    expect(adjudicateCandidates).not.toHaveBeenCalled();
+  });
+
+  it("allows adjudication to reclassify a candidate using only candidate evidence", async () => {
+    const pack = worldPackSchema.parse(portable);
+    const reclassifiedFinding = {
+      ...portableOutput.findings[0],
+      kind: "ambiguity" as const,
+      missing_fact: "Which tide entered first after the bell.",
+      why_unresolved: "The notes do not establish sequence between the two entries.",
+      supported_readings: [
+        { label: "White first", outcome: "contradiction_supported" as const, explanation: "The second entry violates the single-tide rule." },
+        { label: "Same tide reading", outcome: "contradiction_not_supported" as const, explanation: "If the notes name one event two ways, no second entry is established." },
+      ],
+    };
+    const adjudicationOutput = { schema_version: "adjudication-output/v1" as const, decisions: [acceptDecision("candidate-01", reclassifiedFinding)] };
+    const response = await executeLiveAudit(
+      { ...request, clientRequestId: "reclassify-service", source: { kind: "inline", pack } },
+      { gateway: new MockAuditGateway({ ...portableOutput, findings: [portableOutput.findings[0]] }, adjudicationOutput) },
+    );
+    expect(response.audit.findings).toHaveLength(1);
+    expect(response.audit.findings[0].kind).toBe("ambiguity");
+    expect(response.audit.findings[0].ruleRefs.map((reference) => reference.id)).toEqual(["LAW-A"]);
+  });
+
+  it("fails closed when adjudication accepts a finding with added citations", async () => {
+    const pack = worldPackSchema.parse(portable);
+    const expandedFinding = {
+      ...portableOutput.findings[0],
+      rule_ids: ["LAW-A", "LAW-B"],
+      path_steps: [
+        ...portableOutput.findings[0].path_steps,
+        { kind: "rule" as const, ref_id: "LAW-B", text: "The dusk bell rang once." },
+      ],
+    };
+    await expect(executeLiveAudit(
+      { ...request, clientRequestId: "expanded-citation-service", source: { kind: "inline", pack } },
+      { gateway: new MockAuditGateway({ ...portableOutput, findings: [portableOutput.findings[0]] }, { schema_version: "adjudication-output/v1", decisions: [acceptDecision("candidate-01", expandedFinding)] }) },
+    )).rejects.toMatchObject({ code: "INVALID_CITATIONS", status: 422 });
+  });
+
+  it("fails closed on missing, duplicate, and unknown adjudication decision IDs", async () => {
+    const pack = worldPackSchema.parse(portable);
+    const cases = [
+      { schema_version: "adjudication-output/v1" as const, decisions: [] },
+      { schema_version: "adjudication-output/v1" as const, decisions: [rejectDecision("candidate-01"), rejectDecision("candidate-01")] },
+      { schema_version: "adjudication-output/v1" as const, decisions: [rejectDecision("candidate-99")] },
+    ];
+    for (const adjudicationOutput of cases) {
+      await expect(executeLiveAudit(
+        { ...request, clientRequestId: "decision-id-service", source: { kind: "inline", pack } },
+        { gateway: new MockAuditGateway({ ...portableOutput, findings: [portableOutput.findings[0]] }, adjudicationOutput) },
+      )).rejects.toMatchObject({ status: 422 });
+    }
+  });
+
+  it("fails closed on duplicate accepted final findings", async () => {
+    const pack = worldPackSchema.parse(portable);
+    const ambiguityCandidate = {
+      ...portableOutput.findings[0],
+      kind: "ambiguity" as const,
+      missing_fact: "Whether the notes describe two tide entries or one entry twice.",
+      why_unresolved: "The notes share the same bell but do not identify whether the entries are distinct.",
+      supported_readings: [
+        { label: "Distinct entries", outcome: "contradiction_supported" as const, explanation: "Two tide entries violate the single-tide rule." },
+        { label: "One entry twice", outcome: "contradiction_not_supported" as const, explanation: "One entry repeated in two notes does not violate the rule." },
+      ],
+    };
+    const adjudicationOutput = {
+      schema_version: "adjudication-output/v1" as const,
+      decisions: [acceptDecision("candidate-01", portableOutput.findings[0]), acceptDecision("candidate-02", portableOutput.findings[0])],
+    };
+    await expect(executeLiveAudit(
+      { ...request, clientRequestId: "duplicate-final-service", source: { kind: "inline", pack } },
+      { gateway: new MockAuditGateway({ ...portableOutput, findings: [portableOutput.findings[0], ambiguityCandidate] }, adjudicationOutput) },
+    )).rejects.toMatchObject({ code: "INVALID_CITATIONS", status: 422 });
+  });
+
   it("rejects invalid inline packs and unknown bundled packs before gateway invocation", async () => {
     const pack = worldPackSchema.parse(portable);
     const invalidPack = { ...pack, spans: [{ ...pack.spans[0], bookId: "missing" }, pack.spans[1]] };
-    const generate = vi.fn();
+    const generateCandidates = vi.fn();
     await expect(executeLiveAudit(
       { ...request, source: { kind: "inline", pack: invalidPack } } as never,
-      { gateway: { generate } },
+      { gateway: { generateCandidates, adjudicateCandidates: vi.fn() } },
     )).rejects.toMatchObject({ code: "WORLD_PACK_INVALID", status: 400 });
     await expect(executeLiveAudit(
       { ...request, source: { kind: "bundled", packId: "not-mounted" } },
-      { gateway: { generate } },
+      { gateway: { generateCandidates, adjudicateCandidates: vi.fn() } },
     )).rejects.toMatchObject({ code: "WORLD_PACK_NOT_FOUND", status: 404 });
-    expect(generate).not.toHaveBeenCalled();
+    expect(generateCandidates).not.toHaveBeenCalled();
   });
 
   it("rejects a valid but oversized inline pack before model invocation", async () => {
@@ -116,12 +263,12 @@ describe("audit service", () => {
         text: "x".repeat(4_000),
       })),
     });
-    const generate = vi.fn();
+    const generateCandidates = vi.fn();
     await expect(executeLiveAudit(
       { ...request, source: { kind: "inline", pack: oversized } },
-      { gateway: { generate } },
+      { gateway: { generateCandidates, adjudicateCandidates: vi.fn() } },
     )).rejects.toMatchObject({ code: "WORLD_PACK_TOO_LARGE", status: 413 });
-    expect(generate).not.toHaveBeenCalled();
+    expect(generateCandidates).not.toHaveBeenCalled();
   });
 
   it("never preserves inline author material but retains bundled synthetic evidence eligibility", async () => {
@@ -135,30 +282,63 @@ describe("audit service", () => {
       expect(await readdir(directory)).toEqual([]);
 
       await executeLiveAudit(request, { gateway: new MockAuditGateway(), evidenceDirectory: directory });
-      expect(await readdir(directory)).toHaveLength(1);
+      const files = await readdir(directory);
+      expect(files).toHaveLength(1);
+      const evidence = JSON.parse(await readFile(join(directory, files[0]), "utf8"));
+      expect(evidence).toMatchObject({
+        evidenceVersion: "misrule-route-proof/v2",
+        promptVersions: { candidates: "misrule-candidates/v1", adjudication: "misrule-adjudication/v1" },
+        schemaVersions: { candidates: "candidate-output/v1", adjudication: "adjudication-output/v1", final: "model-output/v1" },
+        canonicalCandidateValidation: { status: "PASS", candidateCount: 2 },
+        canonicalAdjudicationValidation: { status: "PASS", decisionCount: 2, acceptedCount: 2, rejectedCount: 0 },
+        acceptedCount: 2,
+        rejectedCount: 0,
+        finalValidation: { status: "PASS", issueCount: 0 },
+      });
+      expect(evidence.candidateInput).toBeDefined();
+      expect(evidence.adjudicationInput).toBeDefined();
+      expect(evidence.rawCandidateResponse).toBeDefined();
+      expect(evidence.rawAdjudicationResponse).toBeDefined();
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
   });
 
   it("types malformed output before it reaches a client DTO", async () => {
-    const gateway: AuditModelGateway = { generate: async () => ({ output: { wrong: true }, provider: "test", endpointHost: "test", requestedModel: "broken", returnedModel: "broken", rawResponse: {} }) };
+    const gateway: AuditModelGateway = {
+      generateCandidates: async () => stageResult("candidate-generation", { wrong: true }),
+      adjudicateCandidates: vi.fn(),
+    };
     await expect(executeLiveAudit(request, { gateway })).rejects.toMatchObject({ code: "MALFORMED_OUTPUT", status: 422 });
   });
 
+  it("types malformed adjudication output before final assembly", async () => {
+    const pack = worldPackSchema.parse(portable);
+    await expect(executeLiveAudit(
+      { ...request, clientRequestId: "malformed-adjudication-service", source: { kind: "inline", pack } },
+      { gateway: new MockAuditGateway({ ...portableOutput, findings: [portableOutput.findings[0]] }, { wrong: true }) },
+    )).rejects.toMatchObject({ code: "MALFORMED_OUTPUT", status: 422 });
+  });
+
   it("re-parses provider-shaped output with the stronger canonical schema", async () => {
-    const valid = await new MockAuditGateway().generate();
-    const output = structuredClone(valid.output) as { findings: Array<{ supported_readings: unknown[] }> };
-    output.findings[1].supported_readings = [];
-    const gateway: AuditModelGateway = { generate: async () => ({ ...valid, output }) };
+    const valid = await new MockAuditGateway().generateCandidates(buildModelInput(worldPackSchema.parse(ashglass)));
+    const output = structuredClone(valid.output) as { candidates: Array<{ supported_readings: unknown[] }> };
+    output.candidates[1].supported_readings = [];
+    const gateway: AuditModelGateway = {
+      generateCandidates: async () => ({ ...valid, output }),
+      adjudicateCandidates: vi.fn(),
+    };
     await expect(executeLiveAudit(request, { gateway })).rejects.toMatchObject({ code: "MALFORMED_OUTPUT", status: 422 });
   });
 
   it("types invalid citations before normalization", async () => {
-    const valid = await new MockAuditGateway().generate();
-    const output = structuredClone(valid.output) as { findings: Array<{ rule_ids: string[] }> };
-    output.findings[0].rule_ids[0] = "UNKNOWN-RULE";
-    const gateway: AuditModelGateway = { generate: async () => ({ ...valid, output }) };
+    const valid = await new MockAuditGateway().generateCandidates(buildModelInput(worldPackSchema.parse(ashglass)));
+    const output = structuredClone(valid.output) as { candidates: Array<{ rule_ids: string[] }> };
+    output.candidates[0].rule_ids[0] = "UNKNOWN-RULE";
+    const gateway: AuditModelGateway = {
+      generateCandidates: async () => ({ ...valid, output }),
+      adjudicateCandidates: vi.fn(),
+    };
     await expect(executeLiveAudit(request, { gateway })).rejects.toMatchObject({ code: "INVALID_CITATIONS", status: 422 });
   });
 
@@ -166,13 +346,24 @@ describe("audit service", () => {
     await expect(executeLiveAudit({ ...request, intent: { mode: "captured", offerToken: "signed-but-no-capture" } }, { gateway: new MockAuditGateway() })).rejects.toEqual(expect.any(AuditServiceError));
   });
 
-  it("sends OpenRouter a strict chat-completions request without putting the key in the body", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+  it("sends OpenRouter two strict chat-completions requests without putting the key in either body", async () => {
+    const candidateOutput = candidateOutputFrom(deterministicMockOutput.findings, deterministicMockOutput.unresolved_questions);
+    const adjudicationOutput = {
+      schema_version: "adjudication-output/v1" as const,
+      decisions: deterministicMockOutput.findings.map((finding, index) => acceptDecision(`candidate-${String(index + 1).padStart(2, "0")}`, finding)),
+    };
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({
       id: "generation-test",
       object: "chat.completion",
       created: 1,
       model: "openai/gpt-oss-120b:free",
-      choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(deterministicMockOutput) } }],
+      choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(candidateOutput) } }],
+    }), { status: 200, headers: { "Content-Type": "application/json" } })).mockResolvedValueOnce(new Response(JSON.stringify({
+      id: "adjudication-test",
+      object: "chat.completion",
+      created: 2,
+      model: "openai/gpt-oss-120b:free",
+      choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(adjudicationOutput) } }],
     }), { status: 200, headers: { "Content-Type": "application/json" } }));
     vi.stubGlobal("fetch", fetchMock);
     const gateway = new OpenAICompatibleAuditGateway({
@@ -184,18 +375,29 @@ describe("audit service", () => {
       credentialSource: "request",
     });
 
-    const generated = await gateway.generate(buildModelInput(worldPackSchema.parse(ashglass)));
-    expect(generated).toMatchObject({ provider: "openrouter", endpointHost: "openrouter.ai", requestedModel: "openai/gpt-oss-120b:free" });
+    const response = await executeLiveAudit(request, { gateway });
+    expect(response.audit).toMatchObject({ schemaVersion: "audit-api/v2", source: { mode: "live", requestedModel: "openai/gpt-oss-120b:free" } });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(String(fetchMock.mock.calls[0][0])).toBe("https://openrouter.ai/api/v1/chat/completions");
-    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
-    expect(body).toMatchObject({
+    expect(String(fetchMock.mock.calls[1][0])).toBe("https://openrouter.ai/api/v1/chat/completions");
+    const candidateBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    const adjudicationBody = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
+    expect(candidateBody).toMatchObject({
       model: "openai/gpt-oss-120b:free",
       max_tokens: 16_000,
       provider: { require_parameters: true },
-      response_format: { type: "json_schema", json_schema: { name: "misrule_audit", strict: true } },
+      response_format: { type: "json_schema", json_schema: { name: "misrule_candidates", strict: true } },
     });
-    expect(body).not.toHaveProperty("max_completion_tokens");
-    expect(JSON.stringify(body)).not.toContain("session-secret");
+    expect(adjudicationBody).toMatchObject({
+      model: "openai/gpt-oss-120b:free",
+      max_tokens: 16_000,
+      provider: { require_parameters: true },
+      response_format: { type: "json_schema", json_schema: { name: "misrule_adjudication", strict: true } },
+    });
+    expect(candidateBody).not.toHaveProperty("max_completion_tokens");
+    expect(adjudicationBody).not.toHaveProperty("max_completion_tokens");
+    expect(JSON.stringify(candidateBody)).not.toContain("session-secret");
+    expect(JSON.stringify(adjudicationBody)).not.toContain("session-secret");
   });
 
   it("returns unparseable provider text for canonical rejection", async () => {
@@ -216,7 +418,7 @@ describe("audit service", () => {
       credentialSource: "request",
     });
 
-    await expect(gateway.generate(buildModelInput(worldPackSchema.parse(ashglass)))).resolves.toMatchObject({ output: "not-json" });
+    await expect(gateway.generateCandidates(buildModelInput(worldPackSchema.parse(ashglass)))).resolves.toMatchObject({ output: "not-json" });
   });
 
   it("types provider model or parameter rejection separately from outage", async () => {
@@ -233,7 +435,7 @@ describe("audit service", () => {
       credentialSource: "request",
     });
 
-    await expect(gateway.generate(buildModelInput(worldPackSchema.parse(ashglass)))).rejects.toMatchObject({
+    await expect(gateway.generateCandidates(buildModelInput(worldPackSchema.parse(ashglass)))).rejects.toMatchObject({
       code: "UPSTREAM_REQUEST_REJECTED",
       status: 422,
       retryable: false,

@@ -45,4 +45,10 @@ describe("provider output contract", () => {
     broken.findings[0].rule_ids = ["RG-R03"];
     expect(validateModelOutputSemantics(modelAuditOutputSchema.parse(broken), pack).map((issue) => issue.code)).toContain("RULE_STEP_NOT_CITED");
   });
+
+  it("rejects duplicate final findings by kind and cited evidence sets", () => {
+    const duplicated = structuredClone(deterministicMockOutput);
+    duplicated.findings.push(structuredClone(duplicated.findings[0]));
+    expect(validateModelOutputSemantics(modelAuditOutputSchema.parse(duplicated), pack).map((issue) => issue.code)).toContain("DUPLICATE_FINDING");
+  });
 });
