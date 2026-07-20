@@ -1,11 +1,24 @@
-import { afterEach, describe, expect, it } from "vitest";
+// @vitest-environment node
+
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/audit/route";
 
 describe("POST /api/audit", () => {
-  const previousMode = process.env.MISRULE_AUDIT_MODE;
+  const previousEnv = {
+    MISRULE_AUDIT_MODE: process.env.MISRULE_AUDIT_MODE,
+    MISRULE_PROVIDER: process.env.MISRULE_PROVIDER,
+    MISRULE_API_ENDPOINT: process.env.MISRULE_API_ENDPOINT,
+    MISRULE_MODEL: process.env.MISRULE_MODEL,
+    MISRULE_ALLOWED_PROVIDER_HOSTS: process.env.MISRULE_ALLOWED_PROVIDER_HOSTS,
+    OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+    MISRULE_EVIDENCE_DIR: process.env.MISRULE_EVIDENCE_DIR,
+  };
   afterEach(() => {
-    if (previousMode === undefined) delete process.env.MISRULE_AUDIT_MODE;
-    else process.env.MISRULE_AUDIT_MODE = previousMode;
+    vi.unstubAllGlobals();
+    for (const [key, value] of Object.entries(previousEnv)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
   });
 
   it("rejects unsupported browser input", async () => {
@@ -58,5 +71,48 @@ describe("POST /api/audit", () => {
     }));
     expect(response.status).toBe(413);
     await expect(response.json()).resolves.toMatchObject({ requestId: "oversized-pack", error: { code: "WORLD_PACK_TOO_LARGE", retryable: false } });
+  });
+
+  it("keeps provider rejection diagnostics out of the public error response", async () => {
+    process.env.MISRULE_AUDIT_MODE = "live";
+    process.env.MISRULE_PROVIDER = "openrouter";
+    process.env.MISRULE_API_ENDPOINT = "https://openrouter.ai/api/v1";
+    process.env.MISRULE_MODEL = "google/gemini-2.5-flash";
+    process.env.MISRULE_ALLOWED_PROVIDER_HOSTS = "openrouter.ai";
+    process.env.OPENROUTER_API_KEY = "server-secret";
+    delete process.env.MISRULE_EVIDENCE_DIR;
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      error: { message: "unsupported response_format json_schema", code: "invalid_schema", type: "invalid_request_error" },
+    }), {
+      status: 422,
+      headers: { "Content-Type": "application/json", "x-request-id": "req-public" },
+    })));
+
+    const response = await POST(new Request("http://localhost/api/audit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schemaVersion: "audit-api/v2",
+        clientRequestId: "route-provider-rejection",
+        source: { kind: "bundled", packId: "ashglass-clocktower-v1" },
+        intent: { mode: "live" },
+      }),
+    }));
+    const body = await response.json();
+    expect(response.status, JSON.stringify(body)).toBe(422);
+    expect(body).toEqual({
+      ok: false,
+      requestId: "route-provider-rejection",
+      error: {
+        code: "UPSTREAM_REQUEST_REJECTED",
+        message: "The provider rejected the selected model or request parameters.",
+        retryable: false,
+        fallbackOffer: null,
+      },
+    });
+    expect(JSON.stringify(body)).not.toContain("providerFailure");
+    expect(JSON.stringify(body)).not.toContain("upstreamStatus");
+    expect(JSON.stringify(body)).not.toContain("req-public");
+    expect(JSON.stringify(body)).not.toContain("server-secret");
   });
 });

@@ -8,7 +8,7 @@ const candidateId = z.string().trim().min(1).max(96);
 
 export const candidateOutputTransportSchema = z
   .object({
-    schema_version: z.literal("candidate-output/v1"),
+    schema_version: z.enum(["candidate-output/v1"]),
     candidates: z.array(modelFindingTransportSchema).max(20),
     unresolved_questions: z.array(z.string()).max(20),
   })

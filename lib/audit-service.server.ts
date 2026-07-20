@@ -7,7 +7,7 @@ import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import type { AuditRequest, AuditResultDto, AuditSuccessResponse } from "@/lib/contracts";
 import { acceptedAdjudicationFromCandidates, adjudicationOutputTransportSchema, validateAdjudicationOutput } from "@/lib/adjudication-output.server";
-import { AuditServiceError } from "@/lib/audit-errors";
+import { AuditServiceError, type ProviderFailureDiagnostic } from "@/lib/audit-errors";
 import { candidateOutputFromModelOutput, candidateOutputTransportSchema, modelOutputFromCandidates, validateCandidateOutput, type CanonicalCandidate } from "@/lib/candidate-output.server";
 import { WorldPackRepositoryError, loadBundledWorldPack } from "@/lib/world-pack-catalog.server";
 import { deterministicMockOutput } from "@/lib/mock-audit.server";
@@ -152,15 +152,75 @@ export function normalizeAudit(output: ModelAuditOutput, pack: WorldPack, gatewa
   };
 }
 
-function classifyProviderError(error: unknown): AuditServiceError {
+type ProviderErrorContext = {
+  stage: GatewayStageResult["stage"];
+  promptVersion: string;
+  schemaVersion: string;
+  provider: string;
+  endpointHost: string;
+  requestedModel: string;
+  started: number;
+};
+
+function primitiveDiagnosticValue(value: unknown): string | number | null {
+  return typeof value === "string" || typeof value === "number" ? value : null;
+}
+
+function headerValue(headers: unknown, name: string): string | null {
+  if (!headers) return null;
+  if (headers instanceof Headers) return headers.get(name);
+  if (typeof headers === "object") {
+    const record = headers as Record<string, unknown>;
+    const direct = record[name] ?? record[name.toLowerCase()] ?? record[name.toUpperCase()];
+    return typeof direct === "string" ? direct : null;
+  }
+  return null;
+}
+
+function sanitizeUpstreamMessage(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const sanitized = value
+    .replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]+/gi, "$1[redacted]")
+    .replace(/\bsk-[A-Za-z0-9_-]{10,}\b/g, "[redacted-api-key]")
+    .replace(/https:\/\/[^\s"'<>?]+[?][^\s"'<>]+/g, "[redacted-url]")
+    .replace(/\{(?:[^{}]|\{[^{}]*\}){200,}\}/g, "[redacted-json-body]")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!sanitized) return null;
+  return sanitized.length <= 500 ? sanitized : `${sanitized.slice(0, 497)}...`;
+}
+
+function providerFailureDiagnostic(error: InstanceType<typeof OpenAI.APIError>, context: ProviderErrorContext): ProviderFailureDiagnostic {
+  const nested = typeof error.error === "object" && error.error !== null ? (error.error as Record<string, unknown>) : {};
+  return {
+    stage: context.stage,
+    provider: context.provider,
+    endpointHost: context.endpointHost,
+    requestedModel: context.requestedModel,
+    upstreamStatus: error.status ?? null,
+    upstreamCode: primitiveDiagnosticValue(error.code) ?? primitiveDiagnosticValue(nested.code),
+    upstreamType: typeof error.type === "string" ? error.type : typeof nested.type === "string" ? nested.type : null,
+    upstreamRequestId:
+      typeof error.requestID === "string"
+        ? error.requestID
+        : headerValue(error.headers, "x-request-id") ?? headerValue(error.headers, "x-openrouter-request-id"),
+    sanitizedUpstreamMessage: sanitizeUpstreamMessage(typeof nested.message === "string" ? nested.message : error.message),
+    latencyMs: Date.now() - context.started,
+    promptVersion: context.promptVersion,
+    schemaVersion: context.schemaVersion,
+  };
+}
+
+function classifyProviderError(error: unknown, context: ProviderErrorContext): AuditServiceError {
   if (error instanceof AuditServiceError) return error;
   if (error instanceof OpenAI.APIError) {
-    if (error.status === 401 || error.status === 403) return new AuditServiceError("UPSTREAM_AUTH_ERROR", "The live audit service could not authenticate.", 503, false);
-    if (error.status === 429) return new AuditServiceError("UPSTREAM_RATE_LIMIT", "The live audit service is rate limited.", 429, true);
+    const diagnostic = providerFailureDiagnostic(error, context);
+    if (error.status === 401 || error.status === 403) return new AuditServiceError("UPSTREAM_AUTH_ERROR", "The live audit service could not authenticate.", 503, false, diagnostic);
+    if (error.status === 429) return new AuditServiceError("UPSTREAM_RATE_LIMIT", "The live audit service is rate limited.", 429, true, diagnostic);
     if (error.status === 400 || error.status === 404 || error.status === 422) {
-      return new AuditServiceError("UPSTREAM_REQUEST_REJECTED", "The provider rejected the selected model or request parameters.", 422, false);
+      return new AuditServiceError("UPSTREAM_REQUEST_REJECTED", "The provider rejected the selected model or request parameters.", 422, false, diagnostic);
     }
-    if (error.status && error.status >= 500) return new AuditServiceError("UPSTREAM_UNAVAILABLE", "The live audit service is temporarily unavailable.", 502, true);
+    if (error.status && error.status >= 500) return new AuditServiceError("UPSTREAM_UNAVAILABLE", "The live audit service is temporarily unavailable.", 502, true, diagnostic);
   }
   if (error instanceof Error && /timeout|timed out|abort/i.test(error.message)) return new AuditServiceError("UPSTREAM_TIMEOUT", "The live audit timed out.", 504, true);
   return new AuditServiceError("UPSTREAM_UNAVAILABLE", "The live audit service could not be reached.", 502, true);
@@ -234,7 +294,15 @@ export class OpenAICompatibleAuditGateway implements AuditModelGateway {
         latencyMs: Date.now() - started,
       };
     } catch (error) {
-      throw classifyProviderError(error);
+      throw classifyProviderError(error, {
+        stage,
+        promptVersion,
+        schemaVersion,
+        provider: this.settings.provider,
+        endpointHost: this.settings.endpointHost,
+        requestedModel: this.settings.model,
+        started,
+      });
     }
   }
 
@@ -333,6 +401,54 @@ async function preserveEvidence(directory: string | undefined, evidence: Record<
   await writeFile(path.join(directory, filename), `${JSON.stringify(evidence, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
 }
 
+function redactPackMaterialFromMessage(message: string | null, pack: WorldPack) {
+  if (!message) return null;
+  let redacted = message;
+  for (const textValue of [...pack.rules.map((rule) => rule.text), ...pack.spans.map((span) => span.text)]) {
+    const text = textValue.trim();
+    if (text.length >= 16) redacted = redacted.replaceAll(text, "[redacted-pack-text]");
+    for (const sentence of text.split(/(?<=[.!?])\s+/)) {
+      const trimmed = sentence.trim();
+      if (trimmed.length >= 16) redacted = redacted.replaceAll(trimmed, "[redacted-pack-text]");
+    }
+  }
+  return redacted;
+}
+
+function providerFailureEvidence(diagnostic: ProviderFailureDiagnostic, pack: WorldPack) {
+  return {
+    ...diagnostic,
+    sanitizedUpstreamMessage: redactPackMaterialFromMessage(diagnostic.sanitizedUpstreamMessage, pack),
+  };
+}
+
+async function preserveProviderFailureEvidence(
+  directory: string | undefined,
+  request: AuditRequest,
+  pack: WorldPack,
+  diagnostic: ProviderFailureDiagnostic | undefined,
+  started: number,
+  stagesNotRun: string[],
+) {
+  if (!directory || !diagnostic) return;
+  await preserveEvidence(directory, {
+    evidenceVersion: "misrule-route-proof/v2",
+    clientRequestId: request.clientRequestId,
+    packDigest: createHash("sha256").update(JSON.stringify(pack)).digest("hex"),
+    failedStage: diagnostic.stage,
+    promptVersions: { candidates: CANDIDATE_PROMPT_VERSION, adjudication: ADJUDICATION_PROMPT_VERSION },
+    schemaVersions: { candidates: CANDIDATE_SCHEMA_VERSION, adjudication: ADJUDICATION_SCHEMA_VERSION, final: MODEL_SCHEMA_VERSION },
+    provider: diagnostic.provider,
+    endpointHost: diagnostic.endpointHost,
+    requestedModel: diagnostic.requestedModel,
+    providerFailure: providerFailureEvidence(diagnostic, pack),
+    stagesNotRun,
+    normalizedAudit: null,
+    finalValidation: { status: "NOT_RUN" },
+    totalLatencyMs: Date.now() - started,
+  });
+}
+
 // Per-stage transport identity, recorded explicitly so staged bundled
 // evidence identifies both stages and their returned model metadata
 // independent of the underlying gateway's raw-response shape.
@@ -406,7 +522,22 @@ export async function executeLiveAudit(
 
   const started = Date.now();
   const candidateInput = buildModelInput(pack);
-  const candidateStage = await dependencies.gateway.generateCandidates(candidateInput);
+  let candidateStage: GatewayStageResult;
+  try {
+    candidateStage = await dependencies.gateway.generateCandidates(candidateInput);
+  } catch (error) {
+    if (error instanceof AuditServiceError) {
+      await preserveProviderFailureEvidence(
+        evidenceEligible ? dependencies.evidenceDirectory : undefined,
+        request,
+        pack,
+        error.providerFailureDiagnostic,
+        started,
+        ["canonical-candidate-validation", "focused-adjudication", "canonical-adjudication-validation", "final-validation"],
+      );
+    }
+    throw error;
+  }
   const evidenceBase = {
     evidenceVersion: "misrule-route-proof/v2",
     clientRequestId: request.clientRequestId,
@@ -454,7 +585,21 @@ export async function executeLiveAudit(
     finalOutput = modelOutputFromCandidates(candidateValidation.output);
   } else {
     adjudicationInput = buildAdjudicationInput(pack, candidateValidation.candidates);
-    adjudicationStage = await dependencies.gateway.adjudicateCandidates(adjudicationInput);
+    try {
+      adjudicationStage = await dependencies.gateway.adjudicateCandidates(adjudicationInput);
+    } catch (error) {
+      if (error instanceof AuditServiceError) {
+        await preserveProviderFailureEvidence(
+          evidenceEligible ? dependencies.evidenceDirectory : undefined,
+          request,
+          pack,
+          error.providerFailureDiagnostic,
+          started,
+          ["canonical-adjudication-validation", "final-validation"],
+        );
+      }
+      throw error;
+    }
     const adjudicationValidation = validateAdjudicationOutput(
       adjudicationStage.output,
       candidateValidation.candidates,

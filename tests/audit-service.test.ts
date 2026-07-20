@@ -8,6 +8,9 @@ import ashglass from "@/fixtures/ashglass-clocktower-v1/input.json";
 import portable from "@/tests/fixtures/portable-two-book-world-pack.json";
 import { worldPackSchema } from "@/lib/world-pack";
 import { deterministicMockOutput } from "@/lib/mock-audit.server";
+import { zodResponseFormat } from "openai/helpers/zod";
+import { adjudicationOutputTransportSchema } from "@/lib/adjudication-output.server";
+import { candidateOutputTransportSchema } from "@/lib/candidate-output.server";
 import {
   ADJUDICATION_PROMPT_VERSION,
   ADJUDICATION_SCHEMA_VERSION,
@@ -440,5 +443,187 @@ describe("audit service", () => {
       status: 422,
       retryable: false,
     });
+  });
+
+  it.each([400, 404, 422])("keeps upstream %s public mapping sanitized while preserving private status", async (status) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      error: { message: `unsupported response_format for status ${status}`, code: `code-${status}`, type: "invalid_request_error" },
+    }), {
+      status,
+      headers: { "Content-Type": "application/json", "x-request-id": `req-${status}` },
+    })));
+    const gateway = new OpenAICompatibleAuditGateway({
+      provider: "openrouter",
+      apiEndpoint: "https://openrouter.ai/api/v1",
+      endpointHost: "openrouter.ai",
+      model: "google/gemini-2.5-flash",
+      apiKey: "session-secret",
+      credentialSource: "request",
+    });
+
+    await expect(gateway.generateCandidates(buildModelInput(worldPackSchema.parse(ashglass)))).rejects.toMatchObject({
+      code: "UPSTREAM_REQUEST_REJECTED",
+      status: 422,
+      retryable: false,
+      providerFailureDiagnostic: {
+        stage: "candidate-generation",
+        upstreamStatus: status,
+        upstreamCode: `code-${status}`,
+        upstreamType: "invalid_request_error",
+        upstreamRequestId: `req-${status}`,
+        requestedModel: "google/gemini-2.5-flash",
+      },
+    });
+  });
+
+  it("uses provider-portable transport schema_version enums instead of JSON Schema const", () => {
+    const candidateSchema = zodResponseFormat(candidateOutputTransportSchema, "misrule_candidates").json_schema.schema as {
+      properties: { schema_version: unknown };
+    };
+    const adjudicationSchema = zodResponseFormat(adjudicationOutputTransportSchema, "misrule_adjudication").json_schema.schema as {
+      properties: { schema_version: unknown };
+    };
+    const serialized = JSON.stringify({ candidateSchema, adjudicationSchema });
+    expect(serialized).not.toContain("\"const\"");
+    expect(candidateSchema.properties.schema_version).toMatchObject({ type: "string", enum: ["candidate-output/v1"] });
+    expect(adjudicationSchema.properties.schema_version).toMatchObject({ type: "string", enum: ["adjudication-output/v1"] });
+  });
+
+  it("writes safe bundled provider-failure evidence for a candidate-stage rejection", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "misrule-provider-candidate-fail-"));
+    const storyExcerpt = "The clerk dated the emergency session to the seventeenth day of Rainfall, Year 415.";
+    try {
+      const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+        error: {
+          message: `schema rejected; Bearer sk-secret-1234567890; excerpt: ${storyExcerpt}`,
+          code: "invalid_schema",
+          type: "invalid_request_error",
+        },
+      }), {
+        status: 422,
+        headers: { "Content-Type": "application/json", "x-request-id": "req-candidate" },
+      }));
+      vi.stubGlobal("fetch", fetchMock);
+      const gateway = new OpenAICompatibleAuditGateway({
+        provider: "openrouter",
+        apiEndpoint: "https://openrouter.ai/api/v1",
+        endpointHost: "openrouter.ai",
+        model: "google/gemini-2.5-flash",
+        apiKey: "session-secret",
+        credentialSource: "request",
+      });
+
+      await expect(executeLiveAudit(request, { gateway, evidenceDirectory: directory })).rejects.toMatchObject({
+        code: "UPSTREAM_REQUEST_REJECTED",
+        status: 422,
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const files = await readdir(directory);
+      expect(files).toHaveLength(1);
+      const evidence = JSON.parse(await readFile(join(directory, files[0]), "utf8"));
+      expect(evidence).toMatchObject({
+        evidenceVersion: "misrule-route-proof/v2",
+        clientRequestId: "service-test",
+        failedStage: "candidate-generation",
+        provider: "openrouter",
+        endpointHost: "openrouter.ai",
+        requestedModel: "google/gemini-2.5-flash",
+        normalizedAudit: null,
+        finalValidation: { status: "NOT_RUN" },
+        providerFailure: {
+          upstreamStatus: 422,
+          upstreamCode: "invalid_schema",
+          upstreamType: "invalid_request_error",
+          upstreamRequestId: "req-candidate",
+        },
+      });
+      const serialized = JSON.stringify(evidence);
+      expect(serialized).not.toContain("session-secret");
+      expect(serialized).not.toContain("Authorization");
+      expect(serialized).not.toContain("sk-secret-1234567890");
+      expect(serialized).not.toContain(storyExcerpt);
+      expect(evidence).not.toHaveProperty("candidateInput");
+      expect(evidence).not.toHaveProperty("rawCandidateResponse");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("writes safe bundled provider-failure evidence for an adjudication-stage rejection", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "misrule-provider-adjudication-fail-"));
+    try {
+      const candidateBody = candidateOutputFrom([deterministicMockOutput.findings[0]], deterministicMockOutput.unresolved_questions);
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify({
+          id: "generation-ok",
+          object: "chat.completion",
+          created: 1,
+          model: "google/gemini-2.5-flash",
+          choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(candidateBody) } }],
+        }), { status: 200, headers: { "Content-Type": "application/json" } }))
+        .mockResolvedValueOnce(new Response(JSON.stringify({
+          error: { message: "adjudication schema rejected", code: "invalid_schema", type: "invalid_request_error" },
+        }), { status: 400, headers: { "Content-Type": "application/json", "x-request-id": "req-adjudication" } }));
+      vi.stubGlobal("fetch", fetchMock);
+      const gateway = new OpenAICompatibleAuditGateway({
+        provider: "openrouter",
+        apiEndpoint: "https://openrouter.ai/api/v1",
+        endpointHost: "openrouter.ai",
+        model: "google/gemini-2.5-flash",
+        apiKey: "session-secret",
+        credentialSource: "request",
+      });
+
+      await expect(executeLiveAudit(request, { gateway, evidenceDirectory: directory })).rejects.toMatchObject({
+        code: "UPSTREAM_REQUEST_REJECTED",
+        status: 422,
+      });
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      const files = await readdir(directory);
+      expect(files).toHaveLength(1);
+      const evidence = JSON.parse(await readFile(join(directory, files[0]), "utf8"));
+      expect(evidence).toMatchObject({
+        failedStage: "focused-adjudication",
+        providerFailure: {
+          upstreamStatus: 400,
+          upstreamCode: "invalid_schema",
+          upstreamRequestId: "req-adjudication",
+          promptVersion: ADJUDICATION_PROMPT_VERSION,
+          schemaVersion: ADJUDICATION_SCHEMA_VERSION,
+        },
+        normalizedAudit: null,
+        finalValidation: { status: "NOT_RUN" },
+      });
+      expect(JSON.stringify(evidence)).not.toContain("session-secret");
+      expect(evidence).not.toHaveProperty("adjudicationInput");
+      expect(evidence).not.toHaveProperty("rawAdjudicationResponse");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("writes no evidence for inline provider-stage rejections", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "misrule-provider-inline-fail-"));
+    try {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+        error: { message: "inline schema rejected", code: "invalid_schema" },
+      }), { status: 422, headers: { "Content-Type": "application/json" } })));
+      const gateway = new OpenAICompatibleAuditGateway({
+        provider: "openrouter",
+        apiEndpoint: "https://openrouter.ai/api/v1",
+        endpointHost: "openrouter.ai",
+        model: "google/gemini-2.5-flash",
+        apiKey: "session-secret",
+        credentialSource: "request",
+      });
+
+      await expect(executeLiveAudit(
+        { ...request, clientRequestId: "inline-provider-fail", source: { kind: "inline", pack: worldPackSchema.parse(portable) } },
+        { gateway, evidenceDirectory: directory },
+      )).rejects.toMatchObject({ code: "UPSTREAM_REQUEST_REJECTED", status: 422 });
+      expect(await readdir(directory)).toEqual([]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });

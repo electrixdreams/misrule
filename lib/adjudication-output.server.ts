@@ -40,7 +40,7 @@ const rejectedDecisionSchema = z
 const transportAcceptedDecisionSchema = z
   .object({
     candidate_id: z.string(),
-    decision: z.literal("accept"),
+    decision: z.enum(["accept"]),
     finding: modelFindingTransportSchema,
   })
   .strict();
@@ -48,7 +48,7 @@ const transportAcceptedDecisionSchema = z
 const transportRejectedDecisionSchema = z
   .object({
     candidate_id: z.string(),
-    decision: z.literal("reject"),
+    decision: z.enum(["reject"]),
     rejection_reason: rejectionReasonSchema,
     explanation: z.string(),
   })
@@ -56,7 +56,7 @@ const transportRejectedDecisionSchema = z
 
 export const adjudicationOutputTransportSchema = z
   .object({
-    schema_version: z.literal("adjudication-output/v1"),
+    schema_version: z.enum(["adjudication-output/v1"]),
     decisions: z.array(z.discriminatedUnion("decision", [transportAcceptedDecisionSchema, transportRejectedDecisionSchema])),
   })
   .strict();
