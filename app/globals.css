@@ -635,11 +635,10 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   border-color: var(--brass-light); background: linear-gradient(180deg, #594124, #151b1b); color: #f1e6ce;
 }
 
-/* ----- Two-column layout: bundled sample (left) + your shelf (right) -----
-   Keeps the default (nothing-selected) state short enough to fit a normal
-   desktop viewport without scrolling; the shelf wraps into further rows as
-   more local packs are added instead of scrolling horizontally. */
-.library-main { display: grid; grid-template-columns: minmax(15rem, 22rem) 1fr; gap: var(--space-xl); align-items: start; max-width: 84rem; margin: 0 auto; }
+/* ----- Two-column layout: bundled worlds (left) + your shelf (right) -----
+   The bundled area fits the five public spines and one selected detail card;
+   both shelves wrap instead of introducing horizontal page overflow. */
+.library-main { display: grid; grid-template-columns: minmax(28rem, 34rem) minmax(18rem, 1fr); gap: var(--space-xl); align-items: start; max-width: 88rem; margin: 0 auto; }
 @media (max-width: 900px) { .library-main { grid-template-columns: 1fr; } }
 
 /* ----- Shared light-panel treatment for the bundled card and the shelf popover ----- */
@@ -660,6 +659,8 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
 .info-panel .btn-danger { color: #7c3a2c; border-color: var(--rust); }
 .info-panel .btn-danger:hover { background: rgba(159, 73, 58, .1); }
 
+.bundled-column > .shelf-label { margin-bottom: .9rem; }
+.bundled-spine-shelf { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-sm); padding: 0 0 var(--space-md); margin-bottom: var(--space-md); border-bottom: 3px solid rgba(0,0,0,.55); }
 .bundled-card { border: 1px solid var(--brass-light); }
 
 .shelf-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); border-bottom: 1px solid rgba(194,161,98,.22); padding-bottom: var(--space-xs); margin-bottom: .9rem; }

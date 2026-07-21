@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ashglass from "@/fixtures/ashglass-clocktower-v1/input.json";
+import neon from "@/fixtures/neon-reliquary-v1/input.json";
 import portable from "@/tests/fixtures/portable-two-book-world-pack.json";
 import type { AuditErrorResponse, AuditSuccessResponse } from "@/lib/contracts";
 import { saveLocalWorldPack } from "@/lib/world-library.client";
@@ -9,6 +10,7 @@ import { MisruleApp } from "@/components/MisruleApp";
 import { MisruleProduct } from "@/components/MisruleProduct";
 
 const ashglassPack = worldPackSchema.parse(ashglass);
+const neonPack = worldPackSchema.parse(neon);
 const portablePack = worldPackSchema.parse(portable);
 
 function auditResponse(pack: WorldPack, overrides: Partial<AuditSuccessResponse["audit"]> = {}): AuditSuccessResponse {
@@ -65,13 +67,28 @@ describe("portable Clockwork workflow", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<MisruleProduct bundledPacks={[ashglassPack]} />);
-    fireEvent.click(screen.getByRole("button", { name: "Open sample" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open archive" }));
     openMountedArchive(/Open the Ashglass archive/);
     fireEvent.click(screen.getByRole("button", { name: /Set the world in motion/ }));
     await screen.findByRole("button", { name: /Two Tides After One Bell/ });
 
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
     expect(request.source).toEqual({ kind: "bundled", packId: "ashglass-clocktower-v1" });
+  });
+
+  it("sends a selected non-Ashglass bundled pack with exact bundled provenance", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => auditResponse(neonPack) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<MisruleProduct bundledPacks={[ashglassPack, neonPack]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Neon Reliquary" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open archive" }));
+    openMountedArchive(/Open the Neon Reliquary archive/);
+    fireEvent.click(screen.getByRole("button", { name: /Set the world in motion/ }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    expect(request.source).toEqual({ kind: "bundled", packId: "neon-reliquary-v1" });
   });
 
   it("opens a saved local pack and audits the exact inline World Pack", async () => {

@@ -9,8 +9,8 @@ Misrule is an inspectable fictional-world rule audit for writers, lore editors, 
 ## Judge Path
 
 1. Open **World Library**.
-2. Choose the bundled **Ashglass Clocktower** sample and select **Open sample**.
-3. Select **Set the world in motion** to run a real audit when the deployment is configured for live mode.
+2. Choose **Neon Reliquary** for the recommended cross-genre demo, or open any bundled World Pack.
+3. Select **Open archive**, then **Set the world in motion** to run a real audit when the deployment is configured for live mode.
 4. Open a finding, inspect its rule/span/inference route, and jump to exact cited rules or narrative spans.
 5. Open an ambiguity to see the missing fact and both supported readings.
 6. Create, import, edit, export, and audit structured World Packs from the same library.
@@ -18,7 +18,7 @@ Misrule is an inspectable fictional-world rule audit for writers, lore editors, 
 ## What Is Implemented
 
 - Portable structured World Packs with browser-local create, import, edit, export, and delete flows.
-- Bundled Ashglass and inline local World Pack audit sources.
+- Five bundled World Packs — The Ashglass Clocktower, Neon Reliquary, The Blackwater Testament, The Starfall Accord, and The Verdant Circuit — plus inline local World Pack audit sources.
 - Exact citation rendering for rules, spans, trace steps, contradiction paths, and ambiguity explanations.
 - Two-stage audit reasoning: candidate generation followed by focused adjudication.
 - Strict server-side validation before any `audit-api/v2` response reaches the browser.
@@ -69,7 +69,9 @@ git diff --check
 Evaluate a saved successful route response against server-only fixture truth:
 
 ```bash
-npm run evaluate:audit -- /path/to/route-response.json fixtures/ashglass-clocktower-v1/ground-truth.server.json
+npm run evaluate:audit -- \
+  /path/to/neon-route-response.json \
+  fixtures/neon-reliquary-v1/ground-truth.server.json
 ```
 
 ## Build Week: Codex And GPT-5.6
@@ -90,7 +92,7 @@ The inference runtime is not GPT-5.6. The Build Week evidence is the Codex plus 
 
 ## Limitations
 
-Misrule works on structured World Pack JSON, not manuscript upload or document parsing. It does not implement RAG, embeddings, auth, databases, cloud persistence, collaborative editing, or manuscript-scale ingestion. The bundled Ashglass sample is synthetic, and inference quality depends on the configured provider and model.
+Misrule works on structured World Pack JSON, not manuscript upload or document parsing. It does not implement RAG, embeddings, auth, databases, cloud persistence, collaborative editing, or manuscript-scale ingestion. The bundled World Pack portfolio is synthetic, and inference quality depends on the configured provider and model.
 
 ## License
 

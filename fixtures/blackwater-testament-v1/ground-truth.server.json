@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "ground-truth/v1",
+  "fixtureId": "blackwater-testament-v1",
+  "fixtureVersion": "1.0.0",
+  "cases": [
+    {
+      "caseId": "BT-C01",
+      "expected": "contradiction",
+      "ruleIds": [
+        "BT-R01",
+        "BT-R04",
+        "BT-R06"
+      ],
+      "spanIds": [
+        "BT-S01",
+        "BT-S13",
+        "BT-S14",
+        "BT-S16"
+      ],
+      "multiHop": true
+    },
+    {
+      "caseId": "BT-C02",
+      "expected": "contradiction",
+      "ruleIds": [
+        "BT-R04",
+        "BT-R07",
+        "BT-R13"
+      ],
+      "spanIds": [
+        "BT-S02",
+        "BT-S07",
+        "BT-S11",
+        "BT-S12"
+      ],
+      "multiHop": true
+    },
+    {
+      "caseId": "BT-C03",
+      "expected": "ambiguity",
+      "ruleIds": [
+        "BT-R12"
+      ],
+      "spanIds": [
+        "BT-S18",
+        "BT-S20",
+        "BT-S21"
+      ],
+      "multiHop": true,
+      "missingFact": "Whether the testament seal was impressed before the first death bell sounded."
+    },
+    {
+      "caseId": "BT-C04",
+      "expected": "none",
+      "ruleIds": [
+        "BT-R02"
+      ],
+      "spanIds": [
+        "BT-S03",
+        "BT-S05"
+      ],
+      "multiHop": false
+    },
+    {
+      "caseId": "BT-C05",
+      "expected": "none",
+      "ruleIds": [
+        "BT-R07",
+        "BT-R13"
+      ],
+      "spanIds": [
+        "BT-S06",
+        "BT-S07",
+        "BT-S09"
+      ],
+      "multiHop": false
+    },
+    {
+      "caseId": "BT-C06",
+      "expected": "none",
+      "ruleIds": [
+        "BT-R01"
+      ],
+      "spanIds": [
+        "BT-S04",
+        "BT-S24"
+      ],
+      "multiHop": false
+    }
+  ]
+}

@@ -58,10 +58,11 @@ export function WorldLibrary({
   const [resetOpen, setResetOpen] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [selectedBundledPackId, setSelectedBundledPackId] = useState<string | null>(
+    bundledPacks[0]?.packId ?? null,
+  );
 
-  // Local-shelf selection only. Nothing is selected by default — the bundled
-  // sample is always shown in full to its own left-hand card instead of
-  // competing for this state.
+  // Local-shelf selection remains independent from the bundled shelf.
   const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
 
   const reload = useCallback(() => {
@@ -98,6 +99,8 @@ export function WorldLibrary({
   }, [selectedPackId]);
 
   const selectedEntry = entries.find((entry) => entry.pack.packId === selectedPackId) ?? null;
+  const selectedBundledPack =
+    bundledPacks.find((pack) => pack.packId === selectedBundledPackId) ?? bundledPacks[0] ?? null;
 
   const handleExport = useCallback((pack: WorldPack) => {
     try {
@@ -143,7 +146,7 @@ export function WorldLibrary({
         <p className="leaf-eyebrow">Misrule</p>
         <h1 id="library-title">World Library</h1>
         <p className="library-intro">
-          Find where the world turns against itself. Browse the bundled sample and the World Packs saved in this browser.
+          Find where the world turns against itself. Browse the bundled worlds and the World Packs saved in this browser.
         </p>
       </header>
 
@@ -151,26 +154,48 @@ export function WorldLibrary({
         <LibraryErrorState error={libraryError} onReset={() => setResetOpen(true)} onRetry={reload} />
       ) : (
         <div className="library-main">
-          <div className="bundled-column">
-            {bundledPacks.map((pack) => (
-              <article key={pack.packId} className="info-panel bundled-card">
-                <p className="info-panel-kind">Bundled sample</p>
-                <h2>{pack.title}</h2>
-                <p className="info-panel-sub">{pack.disclosure ?? "Synthetic demo — not a real audit result."}</p>
-                <WorldPackSummary pack={pack} />
-                <p className="info-panel-desc">{pack.description}</p>
-                <p className="info-panel-id">ID {pack.packId}</p>
+          <section className="bundled-column" aria-labelledby="bundled-worlds-label">
+            <p id="bundled-worlds-label" className="shelf-label">Bundled worlds</p>
+            <div className="bundled-spine-shelf" aria-label="Bundled worlds">
+              {bundledPacks.map((pack) => (
+                <button
+                  key={pack.packId}
+                  type="button"
+                  className={`pack-spine${selectedBundledPack?.packId === pack.packId ? " is-open" : ""}`}
+                  aria-label={pack.title}
+                  aria-pressed={selectedBundledPack?.packId === pack.packId}
+                  onClick={() => setSelectedBundledPackId(pack.packId)}
+                >
+                  <span className="pack-spine-title">{pack.title}</span>
+                </button>
+              ))}
+            </div>
+
+            {selectedBundledPack ? (
+              <article className="info-panel bundled-card">
+                <p className="info-panel-kind">Bundled World Pack</p>
+                <h2>{selectedBundledPack.title}</h2>
+                <p className="info-panel-sub">
+                  {selectedBundledPack.disclosure ?? "Synthetic demo — not a real audit result."}
+                </p>
+                <WorldPackSummary pack={selectedBundledPack} />
+                <p className="info-panel-desc">{selectedBundledPack.description}</p>
+                <p className="info-panel-id">ID {selectedBundledPack.packId}</p>
                 <div className="info-panel-actions">
-                  <button type="button" className="btn btn-primary" onClick={() => onOpenBundled(pack.packId)}>
-                    Open sample
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => onOpenBundled(selectedBundledPack.packId)}
+                  >
+                    Open archive
                   </button>
-                  <button type="button" className="btn" onClick={() => handleExport(pack)}>
+                  <button type="button" className="btn" onClick={() => handleExport(selectedBundledPack)}>
                     Export World Pack
                   </button>
                 </div>
               </article>
-            ))}
-          </div>
+            ) : null}
+          </section>
 
           <div className="shelf-column">
             <div className="shelf-toolbar">

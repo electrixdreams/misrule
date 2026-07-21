@@ -1,0 +1,560 @@
+{
+  "schemaVersion": "world-pack/v1",
+  "packId": "verdant-circuit-v1",
+  "packVersion": "1.0.0",
+  "title": "The Verdant Circuit",
+  "description": "A creature-ecology continuity pack about habitat-born kinforms, restoration relays, resonance-pact law, watershed causality, transformation timing, and the prospective legal aftermath of the Bloomfall.",
+  "disclosure": "Synthetic original World Pack created for Misrule.",
+  "world": {
+    "worldId": "world-verdant-circuit",
+    "slug": "verdant-circuit",
+    "title": "The Verdant Circuit",
+    "premise": "Across Liora, semi-sentient kinforms emerge from stable relationships among habitat signatures rather than bloodlines. Custodians may hold one lifelong resonance pact with a registered habitat network, never ownership of an individual kinform. The Verdant Circuit sends teams to restore corridors, guide migrations, and defend ecological claims before ranger tribunals. Its championship season ends in the Bloomfall, a continent-wide ecological upheaval followed by prospective conservation amendments that redraw network identity without rewriting earlier conduct.",
+    "summary": "Restoration teams race across Liora while exact habitat signatures, pact records, watershed clocks, and post-Bloomfall law determine which celebrated claims can survive inspection.",
+    "tags": [
+      "creature ecology",
+      "adventure game",
+      "animation series",
+      "restoration law",
+      "migration timing",
+      "continuity audit"
+    ]
+  },
+  "books": [
+    {
+      "bookId": "VC-B01",
+      "worldId": "world-verdant-circuit",
+      "slug": "liora-field-concordance",
+      "title": "The Liora Field Concordance",
+      "sourceLabel": "The Liora Field Concordance",
+      "ordinal": 0,
+      "summary": "The authoritative field guide to habitat signatures, kinform emergence, resonance pacts, migration practice, evidence standards, and pre-Bloomfall conservation law."
+    },
+    {
+      "bookId": "VC-B02",
+      "worldId": "world-verdant-circuit",
+      "slug": "verdant-circuit-chronicle",
+      "title": "The Verdant Circuit Chronicle",
+      "sourceLabel": "The Verdant Circuit Chronicle",
+      "ordinal": 1,
+      "summary": "A season archive of restoration stages, ranger inspections, tribunal testimony, public commentary, habitat records, and the incidents immediately preceding the Bloomfall."
+    },
+    {
+      "bookId": "VC-B03",
+      "worldId": "world-verdant-circuit",
+      "slug": "after-the-bloomfall",
+      "title": "After the Bloomfall",
+      "sourceLabel": "After the Bloomfall",
+      "ordinal": 2,
+      "summary": "The post-upheaval record of remapped habitats, prospective conservation amendments, continuity audits, emergency custodianship, and disputed tribunal applications."
+    }
+  ],
+  "rules": [
+    {
+      "ruleId": "VC-R01",
+      "worldId": "world-verdant-circuit",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-verdant-circuit"
+      },
+      "type": "conditional",
+      "title": "Kinform emergence requires a registered confluence",
+      "text": "A kinform can emerge only where at least two registered habitat signatures are simultaneously present in a stable ecological relationship.",
+      "displayOrder": 1
+    },
+    {
+      "ruleId": "VC-R02",
+      "worldId": "world-verdant-circuit",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-verdant-circuit"
+      },
+      "type": "fact",
+      "title": "A resonance pact binds to a habitat network",
+      "text": "A resonance pact binds one living custodian to one registered habitat network and never to an individual kinform.",
+      "displayOrder": 2
+    },
+    {
+      "ruleId": "VC-R03",
+      "worldId": "world-verdant-circuit",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-verdant-circuit"
+      },
+      "type": "constraint",
+      "title": "One active network pact per living custodian",
+      "text": "A living custodian may not accept a reciprocal rootcall from a second habitat network while an earlier resonance pact remains active.",
+      "displayOrder": 3
+    },
+    {
+      "ruleId": "VC-R04",
+      "worldId": "world-verdant-circuit",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-verdant-circuit"
+      },
+      "type": "conditional",
+      "title": "Pre-Bloomfall pacts end only by death or certified extinction",
+      "text": "Before the Bloomfall Conservation Amendments take effect, an active resonance pact ends only when the custodian dies or the bonded habitat network is certified extinct.",
+      "displayOrder": 4
+    },
+    {
+      "ruleId": "VC-R05",
+      "worldId": "world-verdant-circuit",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-verdant-circuit"
+      },
+      "type": "conditional",
+      "title": "Temporary guidance is not a pact",
+      "text": "A person may guide kinforms for no more than seventy-two hours without forming a pact if no reciprocal rootcall occurs and a ranger notice is filed within six hours of guidance beginning.",
+      "displayOrder": 5
+    },
+    {
+      "ruleId": "VC-R06",
+      "worldId": "world-verdant-circuit",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-verdant-circuit"
+      },
+      "type": "conditional",
+      "title": "Certified dormant signatures remain present",
+      "text": "A habitat signature remains legally present for up to nine years after visible collapse when certified resonance residue stays above threshold and the supporting substrate remains contiguous.",
+      "displayOrder": 6
+    },
+    {
+      "ruleId": "VC-R07",
+      "worldId": "world-verdant-circuit",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-verdant-circuit"
+      },
+      "type": "constraint",
+      "title": "Resemblance is not resonance identity",
+      "text": "Physical mimicry or a non-sentient ecological echo cannot establish that a kinform emerged, transformed, or entered a resonance pact.",
+      "displayOrder": 7
+    },
+    {
+      "ruleId": "VC-R08",
+      "worldId": "world-verdant-circuit",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-verdant-circuit"
+      },
+      "type": "temporal",
+      "title": "Oriel Run effects cannot outrun waterflow",
+      "text": "Under the recorded Circuit-season flow conditions, a habitat effect carried from High Oriel Gate by Oriel Run cannot reach the Reedweave cradle in less than twelve hours.",
+      "displayOrder": 8
+    },
+    {
+      "ruleId": "VC-R09",
+      "worldId": "world-verdant-circuit",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-verdant-circuit"
+      },
+      "type": "conditional",
+      "title": "Wingpulse must precede district exit",
+      "text": "A lanternwing transformation is validly attributed to a district only if its seed-state completes six continuous hours of qualifying orchard-fungus humidity and emits its irreversible wingpulse before crossing out of that district.",
+      "displayOrder": 9
+    },
+    {
+      "ruleId": "VC-R10",
+      "worldId": "world-verdant-circuit",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-verdant-circuit"
+      },
+      "type": "conditional",
+      "title": "Glassback emergence requires three concurrent signatures",
+      "text": "A glassback can emerge only where mineral-rain, heated-silica, and microbial-crust habitat signatures are simultaneously present in one stable confluence.",
+      "displayOrder": 10
+    },
+    {
+      "ruleId": "VC-R11",
+      "worldId": "world-verdant-circuit",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-verdant-circuit"
+      },
+      "type": "conditional",
+      "title": "Calibration determines sensor priority",
+      "text": "A calibrated habitat sensor clock outranks public commentary for exact event timing, but a sensor under a documented calibration hold has no automatic priority over other contemporaneous records.",
+      "displayOrder": 11
+    },
+    {
+      "ruleId": "VC-R12",
+      "worldId": "world-verdant-circuit",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-verdant-circuit"
+      },
+      "type": "temporal",
+      "title": "Bloomfall law is prospective",
+      "text": "The Bloomfall Conservation Amendments take effect at first light on Post-Bloomfall Day 1 and govern no incident that occurred earlier.",
+      "displayOrder": 12
+    },
+    {
+      "ruleId": "VC-R13",
+      "worldId": "world-verdant-circuit",
+      "scope": {
+        "kind": "book",
+        "bookId": "VC-B03"
+      },
+      "type": "conditional",
+      "title": "Majority substrate continuity preserves network identity",
+      "text": "After the Bloomfall Conservation Amendments take effect, a redistricted habitat network retaining at least sixty percent contiguous substrate is legally the same network and its existing resonance pact continues.",
+      "displayOrder": 13
+    },
+    {
+      "ruleId": "VC-R14",
+      "worldId": "world-verdant-circuit",
+      "scope": {
+        "kind": "book",
+        "bookId": "VC-B03"
+      },
+      "type": "conditional",
+      "title": "Low continuity creates suspension and emergency custodianship",
+      "text": "After the Bloomfall Conservation Amendments take effect, a redistricted network retaining less than sixty percent contiguous substrate places its prior pact in suspension and permits one emergency custodianship with the successor network without creating a second resonance pact.",
+      "displayOrder": 14
+    }
+  ],
+  "spans": [
+    {
+      "spanId": "VC-S01",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B01",
+      "source": {
+        "label": "The Liora Field Concordance",
+        "scene": "Confluence Recognition",
+        "chapter": "Field Principle 1"
+      },
+      "text": "Glassbacks have no lineage table. At Saltglass Hollow and the distant Ember Shoals, the same low-bodied form appeared only after mineral rain settled through heated silica already webbed with living microbial crust. The Concordance names all three signatures as jointly necessary for a glassback; resemblance between the two manifestations records a repeated habitat relationship, not descent.",
+      "displayOrder": 1
+    },
+    {
+      "spanId": "VC-S02",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B01",
+      "source": {
+        "label": "The Liora Field Concordance",
+        "scene": "Pact Doctrine",
+        "chapter": "Field Principle 4"
+      },
+      "text": "A reciprocal rootcall joins a living custodian to the registered habitat network that answered. The seal does not attach to any kinform that happened to carry the call. Reedweave once lost three visible rootfins during a dry month, yet its custodian seal remained continuous because the delta network itself endured.",
+      "displayOrder": 2
+    },
+    {
+      "spanId": "VC-S03",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B01",
+      "source": {
+        "label": "The Liora Field Concordance",
+        "scene": "Termination and Extinction",
+        "chapter": "Field Principle 5"
+      },
+      "text": "Under the law preceding the Bloomfall amendments, a pact closes only upon the custodian’s death or a ranger certificate declaring the bonded network extinct. Fire damage, silence in the rootcall band, missing kinforms, boundary revision, and a custodian’s renunciation do not close the seal.",
+      "displayOrder": 3
+    },
+    {
+      "spanId": "VC-S04",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B01",
+      "source": {
+        "label": "The Liora Field Concordance",
+        "scene": "Emergency Guidance",
+        "chapter": "Field Practice 8"
+      },
+      "text": "Migration escorts may set scent flags, shade cloths, water tones, or soft barriers for as long as seventy-two hours without entering a pact. The escort must file a ranger notice within six hours of beginning, and the archive must show that no reciprocal rootcall occurred.",
+      "displayOrder": 4
+    },
+    {
+      "spanId": "VC-S05",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B01",
+      "source": {
+        "label": "The Liora Field Concordance",
+        "scene": "Lanternwing Transformation Table",
+        "chapter": "Canopy Table 3"
+      },
+      "text": "A lanternwing seed-state becomes attributable to an orchard district after six uninterrupted hours of qualifying fungus humidity and completion of the irreversible wingpulse. The wingpulse must occur before the seed-state passes beyond that district’s registered boundary marker.",
+      "displayOrder": 5
+    },
+    {
+      "spanId": "VC-S06",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B01",
+      "source": {
+        "label": "The Liora Field Concordance",
+        "scene": "Oriel Run Transit Table",
+        "chapter": "Watershed Table 12"
+      },
+      "text": "For ordinary Circuit-season flow, the route from High Oriel Gate to the Reedweave cradle has a twelve-hour minimum transit. The figure is a physical floor derived from the slowest constriction and the fastest certified surface channel; it is not an average journey time.",
+      "displayOrder": 6
+    },
+    {
+      "spanId": "VC-S07",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B01",
+      "source": {
+        "label": "The Liora Field Concordance",
+        "scene": "Dormancy Appendix",
+        "chapter": "Residue Example 6"
+      },
+      "text": "At Drybell Orchard, fruiting fungi vanished from sight for six years while certified memory residue remained above threshold in one unbroken root mat. The signature was therefore recorded as dormant and present, not extinct, until the visible bloom returned.",
+      "displayOrder": 7
+    },
+    {
+      "spanId": "VC-S08",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B01",
+      "source": {
+        "label": "The Liora Field Concordance",
+        "scene": "False Signatures",
+        "chapter": "Identification Plate 9"
+      },
+      "text": "A mirrorhide may borrow another kinform’s outline and light scatter without changing resonance. Heavy dew can also provoke a brief ecological echo with no stable sentient response. Neither a copied silhouette nor a solitary pulse proves emergence, transformation, or reciprocal rootcall.",
+      "displayOrder": 8
+    },
+    {
+      "spanId": "VC-S09",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B01",
+      "source": {
+        "label": "The Liora Field Concordance",
+        "scene": "Circuit Founding Charter",
+        "chapter": "Civic Preface"
+      },
+      "text": "The Verdant Circuit exists to restore broken relationships among habitats, not to award possession of their manifestations. Teams may race a relay and celebrate a successful migration, but every ecological claim remains subject to ranger inspection and tribunal review.",
+      "displayOrder": 9
+    },
+    {
+      "spanId": "VC-S10",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B02",
+      "source": {
+        "label": "Resonance Archive pact extract",
+        "scene": "Reedweave Delta registration",
+        "chapter": "Circuit Season Day 35"
+      },
+      "text": "Archive seal RD-18 lists Kaia Neris, living custodian, in an active resonance pact with Reedweave Delta at 10:22 on Circuit Season Day 35. The waveform remains reciprocal and unclosed; the record carries no death notice, extinction certificate, suspension, or termination mark.",
+      "displayOrder": 10
+    },
+    {
+      "spanId": "VC-S11",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B02",
+      "source": {
+        "label": "Ranger tribunal testimony and rootcall waveform",
+        "scene": "Glassstep acceptance platform",
+        "chapter": "Circuit Season Day 35"
+      },
+      "text": "At 16:40, Kaia Neris placed both palms on the Glassstep Barrens rootstone and completed its answering cadence. “I heard the Barrens answer and I answered back,” she told the stage tribunal. The attached waveform bears the two-way closure pattern used by the Resonance Archive for an accepted reciprocal rootcall.",
+      "displayOrder": 11
+    },
+    {
+      "spanId": "VC-S12",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B02",
+      "source": {
+        "label": "Reedweave viability sensor report",
+        "scene": "Floodplain root audit",
+        "chapter": "Circuit Season Day 36"
+      },
+      "text": "The morning audit found Reedweave Delta damaged along two reed shelves but hydrologically connected, biologically responsive, and above every extinction threshold. Warden Maela Oss entered the result at 08:30: viable network; no extinction certificate issued.",
+      "displayOrder": 12
+    },
+    {
+      "spanId": "VC-S13",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B02",
+      "source": {
+        "label": "Greenwake restoration ledger",
+        "scene": "High Oriel Gate release",
+        "chapter": "Circuit Season Day 23"
+      },
+      "text": "Valve crews opened High Oriel Gate at 14:10 and released the Greenwake mineral suspension into Oriel Run. At 14:26 the Circuit result board entered an unqualified claim: “Greenwake’s gate release supplied the mineral-rain signature that produced the Reedweave glassback observed at 14:17.”",
+      "displayOrder": 13
+    },
+    {
+      "spanId": "VC-S14",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B02",
+      "source": {
+        "label": "Reedweave cradle habitat sensor record",
+        "scene": "Downstream emergence platform",
+        "chapter": "Circuit Season Day 23"
+      },
+      "text": "At 14:17 the cradle camera recorded a glassback rising from the wet silica shelf. The simultaneous assay marked heated-silica and microbial-crust signatures present and stable. Every local mineral-rain column read absent, and the cradle inventory listed no stored or imported mineral source.",
+      "displayOrder": 14
+    },
+    {
+      "spanId": "VC-S15",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B02",
+      "source": {
+        "label": "Watershed Registry Office flow verification",
+        "scene": "Oriel Run control desk",
+        "chapter": "Circuit Season Day 23"
+      },
+      "text": "The control desk verified ordinary Circuit-season flow from High Oriel Gate through the Reedweave constriction. Gate, channel, and bank inspections found no breach, spillway shortcut, pressure jump, or alternate fast path. Under those conditions the mineral-bearing water could not reach the cradle before 02:10 the following day, twelve hours after release.",
+      "displayOrder": 15
+    },
+    {
+      "spanId": "VC-S16",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B02",
+      "source": {
+        "label": "Ranger calibration hold notice",
+        "scene": "Kestrel-7 east-marker sensor",
+        "chapter": "Circuit Season Day 29"
+      },
+      "text": "Dew entered the Kestrel-7 east-marker housing at 03:55, producing intermittent drift between its boundary contact and canopy clock. Warden Maela Oss placed the strip on calibration hold. Its marks remain part of the record, but the device receives no automatic timing priority until recalibration.",
+      "displayOrder": 16
+    },
+    {
+      "spanId": "VC-S17",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B02",
+      "source": {
+        "label": "Seli Tern expedition journal",
+        "scene": "Mistorchard east-marker approach",
+        "chapter": "Circuit Season Day 29"
+      },
+      "text": "Kestrel-7 had completed the sixth humidity hour before we took the final slope. I saw the seed shell open and the full wingpulse travel from thorax to tips; only after that did Rian call the east marker behind the sledge. I wrote this while the canopy lamps were still cooling.",
+      "displayOrder": 17
+    },
+    {
+      "spanId": "VC-S18",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B02",
+      "source": {
+        "label": "Circuit Stewardship League commentary transcript",
+        "scene": "Mistorchard east-marker crossing",
+        "chapter": "Circuit Season Day 29"
+      },
+      "text": "Rian Oth: “The runners have Kestrel-7 across Mistorchard’s east marker—there, now the shell throws its complete lantern flare!” The archive notes that the two phrases were separated by one breath and were not synchronized to a certified instrument.",
+      "displayOrder": 18
+    },
+    {
+      "spanId": "VC-S19",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B02",
+      "source": {
+        "label": "Ranger notice slate",
+        "scene": "South Reedway migration escort",
+        "chapter": "Circuit Season Days 4–5"
+      },
+      "text": "Naro Seln began guiding the stranded rootfin shoal at 09:10 using shade cloths, scent flags, and water tones. The ranger notice reached the South Reedway desk at 13:40, four hours and thirty minutes after guidance began.",
+      "displayOrder": 19
+    },
+    {
+      "spanId": "VC-S20",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B02",
+      "source": {
+        "label": "Ranger inspection report",
+        "scene": "South Reedway shoal handoff",
+        "chapter": "Circuit Season Day 5"
+      },
+      "text": "The shoal entered the restored channel at 16:05, ending Naro Seln’s escort after thirty hours and fifty-five minutes. Resonance assays taken at departure and handoff found responsive following behavior but no reciprocal rootcall between Naro and the South Reedway network.",
+      "displayOrder": 20
+    },
+    {
+      "spanId": "VC-S21",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B02",
+      "source": {
+        "label": "Quiet Quarry substrate assay",
+        "scene": "Lower mineral shelf",
+        "chapter": "Circuit Season Day 11"
+      },
+      "text": "Assay QQ-44 found mineral-rain resonance residue at 1.37 times the legal dormancy threshold. Visible mineral rain had ceased four years earlier, but the supporting shelf remained one contiguous silica bed. Heated-silica and microbial-crust signatures were active along the same confluence line.",
+      "displayOrder": 21
+    },
+    {
+      "spanId": "VC-S22",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B02",
+      "source": {
+        "label": "Quiet Quarry emergence report",
+        "scene": "Dry basin floor",
+        "chapter": "Circuit Season Day 11"
+      },
+      "text": "At 19:20 a glassback unfolded from the lower shelf where the active heat and crust readings intersected assay line QQ-44. No rain was visible above the quarry. The ranger report attributed the third signature to the certified dormant mineral-rain residue in the contiguous bed.",
+      "displayOrder": 22
+    },
+    {
+      "spanId": "VC-S23",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B02",
+      "source": {
+        "label": "Mossglass Verge identification report",
+        "scene": "Heavy-dew observation blind",
+        "chapter": "Circuit Season Day 17"
+      },
+      "text": "Observers first logged a lanternwing-shaped body and one brief amber pulse above the ferns. The stable assay instead returned mirrorhide resonance; the pulse lacked an irreversible wingpulse trace and drew no reciprocal sentient response. Rangers classified the light as a dew-driven ecological echo around a mimicking mirrorhide.",
+      "displayOrder": 23
+    },
+    {
+      "spanId": "VC-S24",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B02",
+      "source": {
+        "label": "Resonance Archive incident extract",
+        "scene": "Bracken Basin and Siltwake Corridor",
+        "chapter": "Circuit Season Day 46"
+      },
+      "text": "Two days before the Bloomfall, the Resonance Archive confirmed Leth Arin as the living custodian of Bracken Basin, with the basin pact active and its seal in good order. Acting under that pact, Leth authorized the Siltwake reed-mat restoration release and filed the Bracken Stewardship Claim; the archive accepted both entries under the pre-Bloomfall pact.",
+      "displayOrder": 24
+    },
+    {
+      "spanId": "VC-S25",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B03",
+      "source": {
+        "label": "Bloom Warden event bulletin",
+        "scene": "Continental first-light notice",
+        "chapter": "Post-Bloomfall Day 0"
+      },
+      "text": "At first light, dormant pollen, fungal memory, and seed-state residue rose across Liora in a single continental surge. The Bloom Wardens ordered emergency mapping of altered corridors and warned that existing law remained in force until a promulgated amendment supplied a new effective date.",
+      "displayOrder": 25
+    },
+    {
+      "spanId": "VC-S26",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B03",
+      "source": {
+        "label": "Continental Restoration Assembly emergency promulgation",
+        "scene": "Continuity Decree publication",
+        "chapter": "Post-Bloomfall Day 1"
+      },
+      "text": "The Bloomfall Conservation Amendments take effect at first light on Post-Bloomfall Day 1 and apply prospectively. From that time forward, a redistricted network retaining at least sixty percent contiguous substrate keeps its legal identity and pact. Below sixty percent, the prior pact is suspended and one emergency custodianship may be appointed to the successor without forming a second resonance pact.",
+      "displayOrder": 26
+    },
+    {
+      "spanId": "VC-S27",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B03",
+      "source": {
+        "label": "Siltwake successor continuity audit",
+        "scene": "Remapped corridor substrate review",
+        "chapter": "Post-Bloomfall Day 3"
+      },
+      "text": "Surveyors measured forty-two percent contiguous substrate between the former Siltwake Corridor and its remapped successor. The audit notes that a custodianship appointed after the amendments took effect could use the low-continuity procedure; it offers no classification for earlier conduct.",
+      "displayOrder": 27
+    },
+    {
+      "spanId": "VC-S28",
+      "worldId": "world-verdant-circuit",
+      "bookId": "VC-B03",
+      "source": {
+        "label": "Ranger Tribunal ruling",
+        "scene": "Leth Arin review panel",
+        "chapter": "Post-Bloomfall Day 6"
+      },
+      "text": "The panel acknowledged that Leth Arin authorized the Siltwake reed-mat restoration release and filed the Bracken Stewardship Claim two days before the Bloomfall, while the Bracken Basin pact was active, and that the amendments took effect only on Post-Bloomfall Day 1. Citing the later audit showing forty-two percent contiguous substrate, it nevertheless ruled that the Bracken pact should be treated as suspended at the earlier time and reclassified the accepted stewardship act as emergency custodianship under the new low-continuity standard.",
+      "displayOrder": 28
+    }
+  ]
+}

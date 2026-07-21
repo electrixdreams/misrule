@@ -1,0 +1,544 @@
+{
+  "schemaVersion": "world-pack/v1",
+  "packId": "blackwater-testament-v1",
+  "packVersion": "1.0.0",
+  "title": "The Blackwater Testament",
+  "description": "A gothic probate archive where tidal movement, household office, family oath, adoption, mapped boundaries, and a death-bell cutoff govern the succession to Blackwater House.",
+  "disclosure": "Synthetic original World Pack created for Misrule.",
+  "world": {
+    "worldId": "world-blackwater-testament",
+    "slug": "blackwater-testament",
+    "title": "The Blackwater Testament",
+    "premise": "Blackwater House stands on a walled tidal island in Dunscar. Under its Founding Covenant, recognized descendants may inherit only after three consecutive designated nights spent continuously within the 1838 boundary, each attested at both bells by a serving household officer who has never taken the family oath. Lord Severin Marrow dies with two qualified successors: his niece Clara Marrow, who prevails by default kinship, and Jonah Fen, a lawfully adopted descendant named in a damaged codicil. The codicil is effective only if its genuine Testament Seal was impressed before the first death bell sounded.",
+    "summary": "An inhabited estate archive narrows a contested inheritance through covenant law, chapel registers, tide records, household books, testimony, and a seconds-level testamentary cutoff.",
+    "tags": [
+      "gothic",
+      "inheritance",
+      "archive",
+      "legal continuity",
+      "testimony",
+      "chronology",
+      "boundary",
+      "mystery"
+    ]
+  },
+  "books": [
+    {
+      "bookId": "bt-blackwater-testament-archive",
+      "worldId": "world-blackwater-testament",
+      "slug": "blackwater-testament-archive",
+      "title": "The Blackwater Testament Archive",
+      "sourceLabel": "Blackwater Testament Archive",
+      "ordinal": 0,
+      "summary": "A single probate collection of covenants, registers, surveys, vigil records, correspondence, transport logs, testament papers, inventories, and sworn depositions concerning the succession to Blackwater House."
+    }
+  ],
+  "rules": [
+    {
+      "ruleId": "BT-R01",
+      "worldId": "world-blackwater-testament",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-blackwater-testament"
+      },
+      "type": "fact",
+      "title": "Original Estate Boundary",
+      "text": "The original estate boundary includes the dry island ground within the 1838 basalt wall, Blackwater House, North Court, the Walled Orchard, the Chapel, the Old Boathouse, and the island ferry steps above the Inner Brass Mark, and excludes the tidal causeway, tidal water below the mark, the mainland landing, Gate Cottage, the West Annex, and the roofed gallery.",
+      "displayOrder": 1
+    },
+    {
+      "ruleId": "BT-R02",
+      "worldId": "world-blackwater-testament",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-blackwater-testament"
+      },
+      "type": "conditional",
+      "title": "Recognized Candidate Class",
+      "text": "A person belongs to the succession candidate class only if that person is a blood descendant or lawfully adopted descendant of the founder's acknowledged issue and was entered in the Chapel Kin Book before the succession opened.",
+      "displayOrder": 2
+    },
+    {
+      "ruleId": "BT-R03",
+      "worldId": "world-blackwater-testament",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-blackwater-testament"
+      },
+      "type": "constraint",
+      "title": "Three Consecutive Black Nights",
+      "text": "A succession candidate becomes qualified only by completing three consecutive nights designated as Black Nights before the succession opens.",
+      "displayOrder": 3
+    },
+    {
+      "ruleId": "BT-R04",
+      "worldId": "world-blackwater-testament",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-blackwater-testament"
+      },
+      "type": "temporal",
+      "title": "Covenant Night Interval",
+      "text": "Each covenant night begins at the third chapel evening bell and ends at the first chapel morning bell.",
+      "displayOrder": 4
+    },
+    {
+      "ruleId": "BT-R05",
+      "worldId": "world-blackwater-testament",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-blackwater-testament"
+      },
+      "type": "fact",
+      "title": "Almanac Designation Controls",
+      "text": "A night counts as moonless for the covenant only when the annual Tide and Moon Almanac marks it with a solid black disc; cloud cover, weather, and personal visibility do not change that designation.",
+      "displayOrder": 5
+    },
+    {
+      "ruleId": "BT-R06",
+      "worldId": "world-blackwater-testament",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-blackwater-testament"
+      },
+      "type": "constraint",
+      "title": "Continuous Presence Requirement",
+      "text": "Leaving the original estate boundary at any time between a covenant night's opening and closing bells voids that night even if the candidate is present at both bells.",
+      "displayOrder": 6
+    },
+    {
+      "ruleId": "BT-R07",
+      "worldId": "world-blackwater-testament",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-blackwater-testament"
+      },
+      "type": "conditional",
+      "title": "Unbound Officer Witness",
+      "text": "A witness is eligible for a covenant night only if the witness is a serving household officer at both the opening and closing bell and has never taken the family oath.",
+      "displayOrder": 7
+    },
+    {
+      "ruleId": "BT-R08",
+      "worldId": "world-blackwater-testament",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-blackwater-testament"
+      },
+      "type": "conditional",
+      "title": "Endpoint Observation and Timely Entry",
+      "text": "For each covenant night, the eligible witness must personally observe the candidate inside the original boundary at both bells and enter the attestation in the Night Ledger before noon on the closing day.",
+      "displayOrder": 8
+    },
+    {
+      "ruleId": "BT-R09",
+      "worldId": "world-blackwater-testament",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-blackwater-testament"
+      },
+      "type": "fact",
+      "title": "Failed Attempts May Be Retried",
+      "text": "An invalid or incomplete vigil neither qualifies the candidate nor prevents that candidate from beginning a later three-night attempt.",
+      "displayOrder": 9
+    },
+    {
+      "ruleId": "BT-R10",
+      "worldId": "world-blackwater-testament",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-blackwater-testament"
+      },
+      "type": "conditional",
+      "title": "Default Kinship Precedence",
+      "text": "If no valid testamentary nomination exists, the qualified candidate connected to the last seated lord by the fewest parent-child links succeeds, with the elder candidate prevailing only when that count is tied.",
+      "displayOrder": 10
+    },
+    {
+      "ruleId": "BT-R11",
+      "worldId": "world-blackwater-testament",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-blackwater-testament"
+      },
+      "type": "conditional",
+      "title": "Qualified-Candidate Nomination",
+      "text": "The seated lord may displace default kinship precedence by a codicil that names a qualified candidate, is signed while the lord is capable, and bears the genuine Testament Seal.",
+      "displayOrder": 11
+    },
+    {
+      "ruleId": "BT-R12",
+      "worldId": "world-blackwater-testament",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-blackwater-testament"
+      },
+      "type": "temporal",
+      "title": "Death-Bell Seal Cutoff",
+      "text": "A testamentary codicil is ineffective unless the Testament Seal is impressed on it before the first death bell sounds after the seated lord dies.",
+      "displayOrder": 12
+    },
+    {
+      "ruleId": "BT-R13",
+      "worldId": "world-blackwater-testament",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-blackwater-testament"
+      },
+      "type": "fact",
+      "title": "Commission Book Controls Office Status",
+      "text": "Household office begins and ends only at the effective times entered in the Commission Book; informal acting service, ordinary employment, and premature use of an office title do not create office status.",
+      "displayOrder": 13
+    },
+    {
+      "ruleId": "BT-R14",
+      "worldId": "world-blackwater-testament",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-blackwater-testament"
+      },
+      "type": "fact",
+      "title": "Oath Roll Controls Oath Status",
+      "text": "The Chapel Oath Roll's officer classification controls whether a household officer is sworn or unbound for covenant witness purposes.",
+      "displayOrder": 14
+    }
+  ],
+  "spans": [
+    {
+      "spanId": "BT-S01",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Founding Covenant of Blackwater House",
+        "scene": "First Schedule — Lands of the Original Seat",
+        "chapter": "Archive I: Founding Instruments"
+      },
+      "text": "From the sealed engrossment dated 1 March 1838: “The Original Seat shall mean all dry ground of Blackwater Island enclosed by the basalt wall, together with Blackwater House, the North Court, the Walled Orchard, the Chapel, the Old Boathouse, and the island ferry steps so far downward as the plate called the Inner Brass Mark. The tidal causeway, all water and steps below that plate, the mainland landing, Gate Cottage, and every mainland parcel or joining work acquired hereafter are expressly without the Original Seat.” The schedule bears Eamon Marrow's signature and the estate seal.",
+      "displayOrder": 1
+    },
+    {
+      "spanId": "BT-S02",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Founding Covenant of Blackwater House",
+        "scene": "Articles IV–IX — Qualification and Testament",
+        "chapter": "Archive I: Founding Instruments"
+      },
+      "text": "Article IV provides that a recognized descendant may qualify only through three consecutive nights carrying the chapel's black-disc designation. Each night runs from the third evening bell to the first morning bell, and departure from the Original Seat during that interval defeats the night. Article V requires a household officer serving at both bells who has never taken the family oath; that officer must see the candidate within the boundary at each bell and enter the attestation before noon. Article VIII gives the seat, absent a valid nomination, to the qualified relation with the fewest parent-child links to the seated lord. Article IX permits a signed codicil naming another qualified candidate, provided the genuine Testament Seal is impressed before the first death bell sounds.",
+      "displayOrder": 2
+    },
+    {
+      "spanId": "BT-S03",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Dunscar Chancery Opinion under Estate Seal",
+        "scene": "Questions on Adoption and Repeated Vigil",
+        "chapter": "Archive I: Founding Instruments"
+      },
+      "text": "Chancellor Mira Ossory's sealed opinion of 19 April 1897 answers two questions from the Blackwater trustees. First, a lawful adoption creates a parent-child link for the covenant where the adopting parent descends from the founder's acknowledged issue and the adopted child is entered in the Chapel Kin Book before the seat falls open. Second, a failed or unfinished vigil has no preclusive force: the claimant gains nothing from it, but may begin a fresh sequence of three designated nights. The opinion states that separate attempts are not to be joined.",
+      "displayOrder": 3
+    },
+    {
+      "spanId": "BT-S04",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "1886 Conveyance and Surveyor’s Plan",
+        "scene": "Parcel B — Mainland Customs House",
+        "chapter": "Archive II: Estate Geography"
+      },
+      "text": "The conveyance transfers the former customs house, mainland landing yard, and a right to build a covered gallery to the Blackwater estate. Surveyor Halden Quist marks the building later styled the West Annex on the mainland side of the channel. His red boundary line for the 1838 Original Seat stops at the Inner Brass Mark on the seventh island step; the gallery crosses over excluded causeway stones and does not move that line. A deed note reads: “Ownership and household use of Parcel B shall not enlarge the Original Seat named in the Founding Covenant.”",
+      "displayOrder": 4
+    },
+    {
+      "spanId": "BT-S05",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Chapel Kin Book",
+        "scene": "Marrow Descendants, Folio 73",
+        "chapter": "Archive III: Kin and Oath"
+      },
+      "text": "“Jonah Fen, born 14 February 1894; adopted by order of the Dunscar Civil Court on 2 February 1901 as son of Lydia Fen, née Marrow, herself entered at Folio 51 as lawful issue of Celia Marrow. Adoption order examined under seal and this entry made 7 February 1901.” The registrar's notation cross-references the 1897 chancery opinion. No alteration or cancellation appears before Lord Severin Marrow's death.",
+      "displayOrder": 5
+    },
+    {
+      "spanId": "BT-S06",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Chapel Oath Roll",
+        "scene": "Officer Index, 1909–1911",
+        "chapter": "Archive III: Kin and Oath"
+      },
+      "text": "The officer index is ruled into SWORN and UNBOUND columns. Under UNBOUND appear: “Holt, Nessa — House Surgeon — no family oath”; “Rusk, Abel — Clerk of Keys — no family oath”; and “Pike, Oren — Under-Steward — no family oath.” Under SWORN appears: “Vey, Maud — Housekeeper — oath renewed 3 January 1908.” A registrar's heading explains that UNBOUND is an affirmative status for officers who have never taken the Marrow family oath.",
+      "displayOrder": 6
+    },
+    {
+      "spanId": "BT-S07",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Household Commission Book",
+        "scene": "Active Commissions, 1906–1911",
+        "chapter": "Archive IV: Household Office"
+      },
+      "text": "The Commission Book records Dr Nessa Holt as House Surgeon from 09:00 on 1 May 1906 and Abel Rusk as Clerk of Keys from 08:00 on 12 January 1908. Oren Pike's entry reads: “Under-Steward; commission effective half past six in the morning, 28 October 1911,” signed by Severin Marrow and the Clerk of Keys. The ordinance printed inside the cover states: “Office, title, and household authority commence at the entered effective hour; prior service, temporary assistance, or anticipated appointment shall not confer the office.”",
+      "displayOrder": 7
+    },
+    {
+      "spanId": "BT-S08",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Blackwater Tide and Moon Almanac",
+        "scene": "Black-Disc Tables for 1909 and 1911",
+        "chapter": "Archive V: Calendars and Passage"
+      },
+      "text": "The chapel copies of the annual tables place solid black discs beside the nights beginning 21, 22, and 23 September 1909; 27, 28, and 29 October 1911; 3, 4, and 5 November 1911; and 9, 10, and 11 November 1911. A standing note says: “The disc is the covenant designation. Cloud, storm, fog, or any observer's inability to see the moon neither adds nor removes a Black Night.” For the relevant months the third evening bell is listed at 21:00 and the first morning bell at 06:00.",
+      "displayOrder": 8
+    },
+    {
+      "spanId": "BT-S09",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Chapel Night Ledger",
+        "scene": "Vigil of Clara Marrow, September 1909",
+        "chapter": "Archive VI: Covenant Vigils"
+      },
+      "text": "Dr Nessa Holt's three entries cover the nights beginning 21, 22, and 23 September. She records Clara within the Chapel at the first opening bell, North Court at the first closing bell, the Testament Library and Walled Orchard at the second pair of bells, and the Chapel and east hall at the third pair. Each line is signed “Nessa Holt, House Surgeon, UNBOUND” and carries a filing time before noon. The ledger form certifies personal observation at the two bells; it contains no statement of continuous watching between them.",
+      "displayOrder": 9
+    },
+    {
+      "spanId": "BT-S10",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Chapel Night Ledger",
+        "scene": "Vigil of Jonah Fen, November 1911",
+        "chapter": "Archive VI: Covenant Vigils"
+      },
+      "text": "Abel Rusk records Jonah Fen within the Original Seat at both bells on each night beginning 3, 4, and 5 November 1911. Locations vary between the Chapel, North Court, Walled Orchard, and library passage. Every closing entry is filed before noon and signed “Abel Rusk, Clerk of Keys, UNBOUND.” The heading cites Jonah's Chapel Kin Book entry at Folio 73. No correction, absence, or boundary departure is entered.",
+      "displayOrder": 10
+    },
+    {
+      "spanId": "BT-S11",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Attached Vigil Certificate",
+        "scene": "Attempt of 27–29 October 1911",
+        "chapter": "Archive VI: Covenant Vigils"
+      },
+      "text": "A separate certificate bears three paired attestations for Peregrine Marrow. The first reads: “Observed within the Chapel at the third evening bell, 21:00, 27 October; observed within North Court at the first morning bell, 06:00, 28 October.” It is signed “Oren Pike, Under-Steward.” Two further entries cover the next two nights in the same form. The certificate does not state when Pike's commission began and was lodged after the third morning.",
+      "displayOrder": 11
+    },
+    {
+      "spanId": "BT-S12",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Probate Memorandum for Peregrine Marrow",
+        "scene": "Ground One — Completed October Vigil",
+        "chapter": "Archive IX: Probate Claims"
+      },
+      "text": "Advocate Jory Dacre submits that the attached certificate proves three consecutive qualifying nights. “Mr Pike witnessed the claimant throughout the required set in his capacity as Under-Steward,” the memorandum states, “and his title beneath each attestation admits no doubt as to his household office.” The memorandum lists the first night as 21:00 on 27 October to 06:00 on 28 October. It does not quote or attach the effective-time line from the Commission Book.",
+      "displayOrder": 12
+    },
+    {
+      "spanId": "BT-S13",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Chapel Night Ledger",
+        "scene": "Attempt of 9–11 November 1911",
+        "chapter": "Archive VI: Covenant Vigils"
+      },
+      "text": "The ledger heading identifies Peregrine Marrow's fresh three-night sequence on the black-disc dates beginning 9, 10, and 11 November. Abel Rusk records Peregrine within the Chapel at 21:00 on 10 November and within the east hall at 06:00 on 11 November, filing the second-night attestation at 08:12. Beside the closing entry Rusk adds, “Claimant's trouser hem and boots wet; no explanation sought under this form.” The printed form certifies only the two observations and does not state that Rusk kept Peregrine in view during the intervening hours.",
+      "displayOrder": 13
+    },
+    {
+      "spanId": "BT-S14",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Probate Deposition of Peregrine Marrow",
+        "scene": "Examination on the Night of 10 November",
+        "chapter": "Archive IX: Probate Claims"
+      },
+      "text": "Asked about the second night of his November sequence, Peregrine answers: “From the third evening bell until the morning bell I remained upon the island side of the Inner Brass Mark. I did not descend below it, enter any boat, or set foot at the mainland landing. Mr Rusk went for the medicine while I waited in the Old Boathouse.” When shown his wet clothing notation, he attributes it to spray blown through the boathouse doors and repeats that he never left the Original Seat.",
+      "displayOrder": 14
+    },
+    {
+      "spanId": "BT-S15",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Dunscar Tide Office Table",
+        "scene": "Blackwater Causeway Station, 10–11 November 1911",
+        "chapter": "Archive V: Calendars and Passage"
+      },
+      "text": "The certified table gives the causeway walking limit as exceeded at 21:48 on 10 November. Water remains above that limit until 01:26 on 11 November, with the channel running westward at its strongest near midnight. The station clerk writes: “No pedestrian passage over the causeway was available during the interval stated. Island-to-mainland movement required a boat from the ferry steps or boathouse.” The table uses Blackwater estate local time.",
+      "displayOrder": 15
+    },
+    {
+      "spanId": "BT-S16",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Clerk of Keys’ Skiff Log",
+        "scene": "Emergency Passage, 10–11 November 1911",
+        "chapter": "Archive V: Calendars and Passage"
+      },
+      "text": "Entry 41 records the east skiff issued at 23:38. Passenger: “Peregrine Marrow,” initialled P.M.; boatman: Tern Vale; countersigned on the island by Abel Rusk. The departure line reads: “23:42, Old Boathouse; passed below Inner Brass Mark; mainland night landing.” The return line reads: “01:12, passenger Peregrine Marrow landed at island steps; skiff secured 01:16,” again initialled P.M. A note states that Rusk retained the duplicate key and did not accompany the passage.",
+      "displayOrder": 16
+    },
+    {
+      "spanId": "BT-S17",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Wren & Salt Apothecary Daybook",
+        "scene": "Night Window Sale at 00:18",
+        "chapter": "Archive VII: External Records"
+      },
+      "text": "The night-window daybook records one bottle of fever draught sold at 00:18 on 11 November to Peregrine Marrow, “come by Blackwater skiff.” Payment is entered from his own purse, followed by his full signature. Apothecary Lysa Wren adds, “Gentleman's boots streamed upon the tiles; parcel wrapped twice against the return spray.” The medicine name matches the bottle received later at Blackwater's kitchen, but the entry states no privilege or exemption concerning the journey.",
+      "displayOrder": 17
+    },
+    {
+      "spanId": "BT-S18",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Testamentary Codicil of Severin Marrow",
+        "scene": "Nomination Clause and Execution Block",
+        "chapter": "Archive VIII: Last Instruments"
+      },
+      "text": "The surviving clause reads: “I, Severin Marrow, nominate Jonah Fen to succeed to the Seat of Blackwater, provided his qualification under the Founding Covenant stands complete.” Severin's signature is intact beneath the clause. The lower corner is warped and stained by water, yet a black wax impression made with the genuine Testament Seal remains attached across paper and ribbon. The instrument bears no clock notation for the moment when the seal face first pressed the wax.",
+      "displayOrder": 18
+    },
+    {
+      "spanId": "BT-S19",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "House Surgeon’s Journal",
+        "scene": "Final Attendance on Lord Severin",
+        "chapter": "Archive VIII: Last Instruments"
+      },
+      "text": "Dr Nessa Holt records Severin awake in the Testament Library at 23:58, naming the year, recognizing Holt and Ivo Senn, and answering a direct question before signing. At 00:04 she finds no pulse or breath and writes, “Lord Severin dead.” Holt then turns to the adjoining sickroom for linen and washes. Her entry says she saw Senn warm wax beforehand but did not see the instant at which the seal met the codicil.",
+      "displayOrder": 19
+    },
+    {
+      "spanId": "BT-S20",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Chapel Death Bell Book",
+        "scene": "Entry for Lord Severin Marrow",
+        "chapter": "Archive VIII: Last Instruments"
+      },
+      "text": "Silas Gant's register line reads: “14 November 1911 — Lord Severin Marrow — first bell 12:05 after midnight; full prescribed toll concluded 12:17.” The printed instruction below the column says that the chapel regulator is read and entered to the minute only; seconds are neither marked on its dial nor copied into the book. The entry records the first audible toll, not the earlier movement of rope or clapper.",
+      "displayOrder": 20
+    },
+    {
+      "spanId": "BT-S21",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Probate Deposition of Ivo Senn",
+        "scene": "The Testament Seal",
+        "chapter": "Archive IX: Probate Claims"
+      },
+      "text": "Senn testifies that Severin had signed and that the black wax was ready when Holt pronounced death. “I lowered the seal as the first iron note rose—or was about to rise—from the chapel,” he says. “I felt a trembling through the table, but I cannot swear whether the seal face had taken the wax before sound reached me, or whether the note reached me first.” He is certain that the seal was on the paper when household members entered shortly afterward, but refuses to assign an order within those seconds.",
+      "displayOrder": 21
+    },
+    {
+      "spanId": "BT-S22",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Probate Deposition of Silas Gant",
+        "scene": "First Pull and First Sound",
+        "chapter": "Archive IX: Probate Claims"
+      },
+      "text": "Gant states that he received the death signal, took the rope, and made the first pull shortly after the regulator hand entered 00:05. “The pull is not the note,” he explains. “The wheel takes, the clapper travels, and then the iron speaks.” He cannot measure that interval and could not see through the chapel wall into the Testament Library. He heard no call from Senn and offers no comparison between the first sound and the seal's movement.",
+      "displayOrder": 22
+    },
+    {
+      "spanId": "BT-S23",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Probate Inventory, Exhibit 1",
+        "scene": "Physical Condition at 08:30",
+        "chapter": "Archive VIII: Last Instruments"
+      },
+      "text": "The court clerk inventories the codicil from the library strongbox under joint custody of Nessa Holt and Abel Rusk. Severin's signature is identified against estate exemplars; the wax carries the unique nick on the Testament Seal matrix; ribbon and paper remain joined beneath the impression. Water has feathered the lower ink but has not detached the seal. The clerk and a waxworker agree that the cooling, damp, and later storage prevent any reliable inference of the second in which the impression was made.",
+      "displayOrder": 23
+    },
+    {
+      "spanId": "BT-S24",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Blackwater Estate Insurance Schedule",
+        "scene": "Building 7 — West Annex of Blackwater House",
+        "chapter": "Archive II: Estate Geography"
+      },
+      "text": "North Coast Mutual lists “West Annex of Blackwater House” among buildings managed and insured with the island seat. The description places it at the former mainland customs yard, west of the tidal channel, and includes the covered gallery as a separate risk. A scope note states: “Building names and grouping in this schedule concern occupation, management, and insurance only; they do not certify covenant title, historic parcel limits, or inclusion in the Original Seat.”",
+      "displayOrder": 24
+    },
+    {
+      "spanId": "BT-S25",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Probate Deposition of Maud Vey, with Wardrobe Exhibit",
+        "scene": "Corridor Figure on 22 September 1909",
+        "chapter": "Archive IX: Probate Claims"
+      },
+      "text": "Maud Vey acknowledges that a note written after Clara's second vigil night identified a woman near the sea-gate corridor as Clara. She corrects herself under oath: “It was Miss Beatrix Sloane in Clara's black mourning coat. I remembered the silver thorn clasp when the wardrobe page was put before me.” The attached page, dated before the sighting, records Clara lending Beatrix that coat because Beatrix's own was rain-soaked. Maud says no disguise was intended and that she saw the figure only from behind before the corridor turned.",
+      "displayOrder": 25
+    },
+    {
+      "spanId": "BT-S26",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Private Letter, Severin Marrow to Clara Marrow",
+        "scene": "After Clara’s 1909 Vigil",
+        "chapter": "Archive X: Correspondence"
+      },
+      "text": "“You have endured the three nights with more patience than the founder deserved,” Severin writes to Clara. “The house will now count you among those whom it permits to wait upon its judgment. Do not mistake my congratulations for a promise of the chair; I will not bind tomorrow in a private letter.” He adds a domestic complaint about the orchard wall and asks Clara to visit before winter.",
+      "displayOrder": 26
+    },
+    {
+      "spanId": "BT-S27",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Letter from Master Corin Vale to Lydia Fen",
+        "scene": "Jonah’s First Winter at Blackwater",
+        "chapter": "Archive X: Correspondence"
+      },
+      "text": "Corin Vale reports that young Jonah has learned to read the tide posts and insists upon signing “Fen” rather than taking the Marrow surname. “He says a name accepted in love need not be traded for one useful at law,” Vale writes. The letter describes Lydia as Jonah's mother, his unease in the chapel, and his fascination with the Old Boathouse. It contains no registry statement and predates his vigil by years.",
+      "displayOrder": 27
+    },
+    {
+      "spanId": "BT-S28",
+      "worldId": "world-blackwater-testament",
+      "bookId": "bt-blackwater-testament-archive",
+      "source": {
+        "label": "Blackwater Kitchen Daybook",
+        "scene": "Storm Supplies and Causeway Closure",
+        "chapter": "Archive X: Household Context"
+      },
+      "text": "Cook Irena Moss notes broken gallery panes, a fish cart turned back before high water, and extra coal carried to the Blue Sickroom. After midnight she records, “Fever draught delivered wet through; bottle sound; runner would not stay for broth.” The entry names no traveler. Elsewhere she complains that the gallery's leaks make the mainland annex costlier than the island roof and orders towels sent to the boathouse.",
+      "displayOrder": 28
+    }
+  ]
+}

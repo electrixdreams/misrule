@@ -1,6 +1,10 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import ashglass from "@/fixtures/ashglass-clocktower-v1/input.json";
+import blackwater from "@/fixtures/blackwater-testament-v1/input.json";
+import neon from "@/fixtures/neon-reliquary-v1/input.json";
+import starfall from "@/fixtures/starfall-accord-v1/input.json";
+import verdant from "@/fixtures/verdant-circuit-v1/input.json";
 import portable from "@/tests/fixtures/portable-two-book-world-pack.json";
 import { MisruleProduct } from "@/components/MisruleProduct";
 import { WorldLibrary } from "@/components/world-library/WorldLibrary";
@@ -13,6 +17,7 @@ import { exportWorldPackJson } from "@/lib/world-pack-io";
 import { MAX_WORLD_PACK_BYTES, worldPackSchema, type WorldPack } from "@/lib/world-pack";
 
 const ashglassPack = worldPackSchema.parse(ashglass);
+const bundledPacks = [ashglass, neon, blackwater, starfall, verdant].map((pack) => worldPackSchema.parse(pack));
 const portablePack = worldPackSchema.parse(portable);
 const FOCUSABLE = "button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex='-1'])";
 
@@ -42,13 +47,40 @@ async function pasteAndValidate(text: string) {
 }
 
 describe("World Library surface", () => {
-  it("renders the World Library first with the bundled sample and an empty local state", () => {
-    render(<WorldLibrary bundledPacks={[ashglassPack]} onOpenBundled={vi.fn()} />);
+  it("renders five bundled spines with Ashglass selected and an empty local state", () => {
+    const { container } = render(<WorldLibrary bundledPacks={bundledPacks} onOpenBundled={vi.fn()} />);
     expect(screen.getByRole("heading", { name: "World Library" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "The Ashglass Clocktower" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open sample" })).toBeInTheDocument();
+    expect(screen.getByText("Bundled worlds")).toBeInTheDocument();
+    for (const pack of bundledPacks) {
+      expect(screen.getByRole("button", { name: pack.title })).toBeInTheDocument();
+    }
+    expect(screen.getByRole("button", { name: "The Ashglass Clocktower" })).toHaveAttribute("aria-pressed", "true");
+    expect(container.querySelectorAll(".bundled-card")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Open archive" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Export World Pack" })).toBeInTheDocument();
     expect(screen.getByText(/No World Packs saved yet/)).toBeInTheDocument();
+  });
+
+  it("selects, opens, and exports Neon without changing the local shelf", () => {
+    const onOpenBundled = vi.fn();
+    const { container } = render(<WorldLibrary bundledPacks={bundledPacks} onOpenBundled={onOpenBundled} />);
+    const neonSpine = screen.getByRole("button", { name: "Neon Reliquary" });
+    neonSpine.focus();
+    fireEvent.click(neonSpine);
+
+    expect(neonSpine).toHaveFocus();
+    expect(neonSpine).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "The Ashglass Clocktower" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("heading", { name: "Neon Reliquary" })).toBeInTheDocument();
+    expect(screen.getByText("ID neon-reliquary-v1")).toBeInTheDocument();
+    expect(container.querySelectorAll(".bundled-card")).toHaveLength(1);
+    expect(screen.getByText(/No World Packs saved yet/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Export World Pack" }));
+    expect(URL.createObjectURL).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Open archive" }));
+    expect(onOpenBundled).toHaveBeenCalledWith("neon-reliquary-v1");
   });
 
   it("lists populated local packs with counts and timestamps", () => {
@@ -69,7 +101,7 @@ describe("World Library surface", () => {
 
   it("opens the bundled sample and returns to the World Library through the product shell", async () => {
     render(<MisruleProduct bundledPacks={[ashglassPack]} />);
-    fireEvent.click(screen.getByRole("button", { name: "Open sample" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open archive" }));
     const openArchive = await screen.findByRole("button", { name: /Open the Ashglass archive/ });
     fireEvent.click(openArchive);
     const returnButton = await screen.findByRole("button", { name: "Return to the World Library" });

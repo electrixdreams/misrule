@@ -1,0 +1,560 @@
+{
+  "schemaVersion": "world-pack/v1",
+  "packId": "neon-reliquary-v1",
+  "packVersion": "1.0.0",
+  "title": "Neon Reliquary",
+  "description": "A three-volume cyberpunk procedural in which identity law, body transfer, machine testimony, transit timing, and documentary forensics collide during Orison’s citywide blackout.",
+  "disclosure": "Synthetic original World Pack created for Misrule.",
+  "world": {
+    "worldId": "world-neon-reliquary",
+    "slug": "neon-reliquary",
+    "title": "Neon Reliquary",
+    "premise": "Orison separates body identity, memory similarity, and legal identity. Bodies may be replaced and memories copied, but civil rights and liability follow a witnessed continuity-root chain maintained by municipal engines. During a citywide blackout, local witness engines continue on isolation reels while clinics, transit gates, vaults, and clerks operate under exact emergency procedures. Courier Rhea Calder is released from a transfer cradle at Meridian Spire, yet an authoritative in-person record places the same root at Reliquary Depot minutes later; other records dispute capsule movement, civil death, and the timing of a manual countersign.",
+    "summary": "A compact civic thriller about continuity law and mutually incompatible operational records during one blackout night.",
+    "tags": [
+      "cyberpunk",
+      "narrative thriller",
+      "identity law",
+      "technical continuity",
+      "documentary forensics",
+      "travel timing"
+    ]
+  },
+  "books": [
+    {
+      "bookId": "NR-B01",
+      "worldId": "world-neon-reliquary",
+      "slug": "orison-continuity-code",
+      "title": "The Orison Continuity Code",
+      "sourceLabel": "Orison Continuity Code",
+      "ordinal": 0,
+      "summary": "The civic code and operating standards that separate body, memory, and legal identity while governing witness engines, body transfer, custody evidence, outage procedure, and synthetic instruments."
+    },
+    {
+      "bookId": "NR-B02",
+      "worldId": "world-neon-reliquary",
+      "slug": "night-run-at-meridian-spire",
+      "title": "Night Run at Meridian Spire",
+      "sourceLabel": "Meridian Blackout Dossier",
+      "ordinal": 1,
+      "summary": "Operational records from the Orison blackout: clinic files, municipal telemetry, witness-engine reels, emergency paperwork, street accounts, and the temporary civil-status directive."
+    },
+    {
+      "bookId": "NR-B03",
+      "worldId": "world-neon-reliquary",
+      "slug": "reliquary-inquiry",
+      "title": "The Reliquary Inquiry",
+      "sourceLabel": "Reliquary Inquiry Record",
+      "ordinal": 2,
+      "summary": "Tribunal testimony and forensic reports that authenticate the blackout records, test institutional claims, and preserve Rhea Calder’s status while one procedural timing question remains unresolved."
+    }
+  ],
+  "rules": [
+    {
+      "ruleId": "NR-R01",
+      "worldId": "world-neon-reliquary",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-neon-reliquary"
+      },
+      "type": "fact",
+      "title": "Root-chain identity",
+      "text": "A citizen's legal identity follows the unbroken witnessed chain of that citizen's continuity root, not the citizen's current body or memory contents.",
+      "displayOrder": 1
+    },
+    {
+      "ruleId": "NR-R02",
+      "worldId": "world-neon-reliquary",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-neon-reliquary"
+      },
+      "type": "fact",
+      "title": "Root and branch notation",
+      "text": "An unsuffixed continuity root identifies the root citizen, while every licensed temporary fork must transact under that root followed by its issued branch suffix.",
+      "displayOrder": 2
+    },
+    {
+      "ruleId": "NR-R03",
+      "worldId": "world-neon-reliquary",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-neon-reliquary"
+      },
+      "type": "conditional",
+      "title": "Temporary fork status",
+      "text": "A licensed temporary fork is legally distinct from its root citizen and may act only within the authority and validity period stated on its issued branch token.",
+      "displayOrder": 3
+    },
+    {
+      "ruleId": "NR-R04",
+      "worldId": "world-neon-reliquary",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-neon-reliquary"
+      },
+      "type": "constraint",
+      "title": "Replacement transfer sequence",
+      "text": "A replacement body becomes the civic bearer only after a licensed clinic witnesses the root transfer and revokes the old body's civic actuator before releasing the new body.",
+      "displayOrder": 4
+    },
+    {
+      "ruleId": "NR-R05",
+      "worldId": "world-neon-reliquary",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-neon-reliquary"
+      },
+      "type": "fact",
+      "title": "Memory non-creation",
+      "text": "Editing or copying a person's memories neither transfers nor creates that person's legal identity.",
+      "displayOrder": 5
+    },
+    {
+      "ruleId": "NR-R06",
+      "worldId": "world-neon-reliquary",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-neon-reliquary"
+      },
+      "type": "conditional",
+      "title": "Offline witness authority",
+      "text": "A witness-engine attestation made during network isolation becomes authoritative when reconciled unless a fault seal for that engine was filed before reconciliation.",
+      "displayOrder": 6
+    },
+    {
+      "ruleId": "NR-R07",
+      "worldId": "world-neon-reliquary",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-neon-reliquary"
+      },
+      "type": "fact",
+      "title": "Gate passage evidence",
+      "text": "A municipal rail-gate entry for a sealed reliquary-capsule serial establishes that the named capsule physically crossed that gate in the recorded direction.",
+      "displayOrder": 7
+    },
+    {
+      "ruleId": "NR-R08",
+      "worldId": "world-neon-reliquary",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-neon-reliquary"
+      },
+      "type": "temporal",
+      "title": "Blackout clinic-to-depot route",
+      "text": "During blackout service, the only open route from Meridian Transfer Clinic to Reliquary Depot requires a seven-minute decontamination lock, the next East Spine lift on its ten-minute cadence, nine minutes of lift transit, and a six-minute sealed-causeway walk.",
+      "displayOrder": 8
+    },
+    {
+      "ruleId": "NR-R09",
+      "worldId": "world-neon-reliquary",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-neon-reliquary"
+      },
+      "type": "constraint",
+      "title": "Cradle confinement",
+      "text": "A transfer recipient cannot leave the clinic transfer cradle before the recorded release seal opens.",
+      "displayOrder": 9
+    },
+    {
+      "ruleId": "NR-R10",
+      "worldId": "world-neon-reliquary",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-neon-reliquary"
+      },
+      "type": "conditional",
+      "title": "Paired-seal custody transfer",
+      "text": "A licensed custodian loses legal control of a reliquary capsule when a valid departure seal and receiving seal name the same capsule serial and transfer reference.",
+      "displayOrder": 10
+    },
+    {
+      "ruleId": "NR-R11",
+      "worldId": "world-neon-reliquary",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-neon-reliquary"
+      },
+      "type": "conditional",
+      "title": "Emergency envelope cutoff",
+      "text": "An emergency continuity envelope preserves a root chain only if the claimant and a licensed witness sign it during the outage and a municipal clerk countersigns it before the local witness engine resumes service.",
+      "displayOrder": 11
+    },
+    {
+      "ruleId": "NR-R12",
+      "worldId": "world-neon-reliquary",
+      "scope": {
+        "kind": "book",
+        "bookId": "NR-B02"
+      },
+      "type": "conditional",
+      "title": "Blackout civil-death suspension",
+      "text": "From the 21:46 blackout declaration until the 23:10 restoration notice, clinics may record body death but may issue no final civil-death declaration and must leave civic status unconfirmed.",
+      "displayOrder": 12
+    },
+    {
+      "ruleId": "NR-R13",
+      "worldId": "world-neon-reliquary",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-neon-reliquary"
+      },
+      "type": "constraint",
+      "title": "Synthetic non-citizenship",
+      "text": "A body registered as a non-citizen synthetic may not hold or transact under a continuity root.",
+      "displayOrder": 13
+    },
+    {
+      "ruleId": "NR-R14",
+      "worldId": "world-neon-reliquary",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-neon-reliquary"
+      },
+      "type": "fact",
+      "title": "Unsealed analog placement records",
+      "text": "An unsealed analog placement sheet records intended storage location only and does not establish a capsule's actual custody or movement.",
+      "displayOrder": 14
+    }
+  ],
+  "spans": [
+    {
+      "spanId": "NR-S01",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B01",
+      "source": {
+        "label": "Orison Continuity Code",
+        "scene": "Civil Personhood §1",
+        "chapter": "Part I — Civic Identity"
+      },
+      "text": "For civil purposes, a person is the bearer named by an unbroken witnessed continuity-root chain. A body is the present physical bearer and may be repaired or replaced. Memory contents may be edited, lost, rehearsed, or copied. Neither a body serial nor similarity of recollection carries independent civil identity when separated from the witnessed root chain.",
+      "displayOrder": 1
+    },
+    {
+      "spanId": "NR-S02",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B01",
+      "source": {
+        "label": "Orison Continuity Code",
+        "scene": "Root Marks and Branch Agency",
+        "chapter": "Part I — Civic Identity"
+      },
+      "text": "A root written without a suffix denotes the root citizen. A licensed branch agent must append its assigned branch mark to every signature, receipt, and machine transaction. The branch mark is not optional shorthand: it tells a reader that the acting bearer is a temporary legal agent rather than the root citizen.",
+      "displayOrder": 2
+    },
+    {
+      "spanId": "NR-S03",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B01",
+      "source": {
+        "label": "Licensed Transfer Standard",
+        "scene": "Clinical Transfer §12",
+        "chapter": "Part II — Bodies and Treatment"
+      },
+      "text": "A licensed clinic shall witness installation of the continuity root in the replacement body, revoke the outgoing body’s civic actuator, and only then open the recipient release seal. The body serial changes at transfer; the citizen does not. A clinic record that shows this sequence is a transfer of bearer, not the creation of another civil person.",
+      "displayOrder": 3
+    },
+    {
+      "spanId": "NR-S04",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B01",
+      "source": {
+        "label": "Municipal Witness Grid Manual",
+        "scene": "Isolation Reels §4",
+        "chapter": "Part III — Witness Infrastructure"
+      },
+      "text": "When the municipal network is unavailable, a witness engine shall sign each local event to its isolation reel. On reconnection, a reel entry takes ordinary authoritative force unless a fault seal naming that engine and interval was filed before reconciliation. Suspicion raised after reconciliation is not a substitute for a timely fault seal.",
+      "displayOrder": 4
+    },
+    {
+      "spanId": "NR-S05",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B01",
+      "source": {
+        "label": "OTSA Blackout Movement Appendix",
+        "scene": "Route M–R",
+        "chapter": "Part IV — Emergency Mobility"
+      },
+      "text": "BLACKOUT ROUTE M–R: Meridian Transfer Clinic exit lock, seven minutes; East Spine passenger lift, departures at each ten-minute mark; lift travel to Reliquary Ring, nine minutes; sealed causeway to Reliquary Depot, six minutes. Freight cars, service ladders, and maintenance canals are closed to persons while this route card is active.",
+      "displayOrder": 5
+    },
+    {
+      "spanId": "NR-S06",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B01",
+      "source": {
+        "label": "Custodial Transfer and Transit Evidence Standard",
+        "scene": "Gate Evidence §9; Custodial Transfer §18",
+        "chapter": "Part V — Reliquary Custody"
+      },
+      "text": "A municipal gate packet naming a sealed capsule serial and direction proves passage of that capsule through the gate. It does not, by itself, assign legal custody. Custody changes only when the departure and receiving seals carry the same capsule serial and transfer reference. The two record types answer different questions and shall be read separately.",
+      "displayOrder": 6
+    },
+    {
+      "spanId": "NR-S07",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B01",
+      "source": {
+        "label": "Orison Continuity Code",
+        "scene": "Manual Continuity §22",
+        "chapter": "Part VI — Outage Procedure"
+      },
+      "text": "During a local witness outage, a claimant and licensed witness may sign a manual continuity envelope. A municipal clerk must countersign before the local witness engine resumes service. Later scanning places the paper into the electronic record but does not establish when the clerk’s pen stroke was made.",
+      "displayOrder": 7
+    },
+    {
+      "spanId": "NR-S08",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B01",
+      "source": {
+        "label": "Emergency Records and Synthetic Instrument Digest",
+        "scene": "Limited Instruments",
+        "chapter": "Part VII — Registry Limits"
+      },
+      "text": "A body entered in the Synthetic Instrument Registry as non-citizen equipment may not receive or transact under a continuity root. Separately, an unsealed analog placement sheet is a planning aid: it records where staff intend to hold an item and is not proof that the item remained there or that custody did not later change.",
+      "displayOrder": 8
+    },
+    {
+      "spanId": "NR-S09",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B02",
+      "source": {
+        "label": "Civic Emergency Bulletin 14-V",
+        "scene": "Blackout declaration and restoration",
+        "chapter": "14 Vesper 219, 21:46–23:10"
+      },
+      "text": "21:46:00 — Citywide witness-grid reconciliation suspended. Clinics may continue treatment and may record physical body death, but civic status shall remain UNCONFIRMED. No final civil-death declaration may issue before the restoration notice. 23:10:00 — Citywide restoration notice issued; the temporary civil-status restriction ends prospectively. Local equipment restarts do not alter this citywide interval.",
+      "displayOrder": 9
+    },
+    {
+      "spanId": "NR-S10",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B02",
+      "source": {
+        "label": "CCO Branch Permit",
+        "scene": "Permit F17",
+        "chapter": "Issued 20:30"
+      },
+      "text": "ROOT: OC-441-RC / BRANCH: F17. VALID: 20:30, 14 Vesper through 02:30, 15 Vesper. HOLDER: temporary fork of Rhea Calder, legally distinct from the root citizen. AUTHORITY: collect and acknowledge parcels at Lantern Market; sign receipts only as OC-441-RC/F17. The permit expires automatically at the stated time.",
+      "displayOrder": 10
+    },
+    {
+      "spanId": "NR-S11",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B02",
+      "source": {
+        "label": "Meridian Transfer Clinic Medical Record",
+        "scene": "Procedure RC-219-44",
+        "chapter": "22:34–22:49"
+      },
+      "text": "22:34:00 — Rhea Calder secured in transfer cradle; outgoing body RC-B3. 22:47:30 — RC-B3 civic actuator revoked; continuity root OC-441-RC installed in replacement body RC-B4. 22:49:00 — recipient release seal opened. Cradle interlock history shows LOCKED continuously from induction until the release seal opened.",
+      "displayOrder": 11
+    },
+    {
+      "spanId": "NR-S12",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B02",
+      "source": {
+        "label": "Meridian Transfer Clinic Status Notice",
+        "scene": "Emergency status desk",
+        "chapter": "23:00:22"
+      },
+      "text": "FINAL CIVIL DEATH — RHEA CALDER. ROOT: OC-441-RC. EFFECTIVE ENTRY: 23:00:22, 14 Vesper 219. Close wage, estate, liability, and dependent-payment accounts under the final-death schedule. This notice is released for immediate civic processing by the Meridian Transfer Clinic registrar.",
+      "displayOrder": 12
+    },
+    {
+      "spanId": "NR-S13",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B02",
+      "source": {
+        "label": "OTSA Rail Gate Telemetry",
+        "scene": "East Vault Gate packet EVG-2219",
+        "chapter": "22:19:06"
+      },
+      "text": "GATE: EAST VAULT. TIME: 22:19:06. SEALED CAPSULE SERIAL: RQ-771. DIRECTION: OUTBOUND. READ METHOD: seal-surface municipal sensor. RESULT: passage completed. No destination was entered by an operator; the packet records the serial and direction observed at the gate.",
+      "displayOrder": 13
+    },
+    {
+      "spanId": "NR-S14",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B02",
+      "source": {
+        "label": "Ordinal Vaultworks / Reliquary Depot Seal Strip",
+        "scene": "Transfer reference OR-14V-77",
+        "chapter": "22:17–22:29"
+      },
+      "text": "DEPARTURE SEAL DV7-771 — capsule RQ-771; transfer OR-14V-77; Vault Seven dispatch desk; 22:17:18; officer Joren Malk. RECEIVING SEAL RD-771 — capsule RQ-771; transfer OR-14V-77; Reliquary Depot intake; 22:29:41; receiver Lio Sar. Both seal impressions are intact on the continuous strip.",
+      "displayOrder": 14
+    },
+    {
+      "spanId": "NR-S15",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B02",
+      "source": {
+        "label": "Bellwether-3 Isolation Reel",
+        "scene": "Clinic release witness",
+        "chapter": "22:49:00"
+      },
+      "text": "EVENT: TRANSFER RELEASE. LOCATION: Meridian Transfer Clinic, cradle four. PRESENT BEARER: body RC-B4. ROOT PRESENTED: OC-441-RC. RELEASE SEAL: OPEN, 22:49:00. The event was written to Bellwether-3’s isolation reel pending municipal reconciliation.",
+      "displayOrder": 15
+    },
+    {
+      "spanId": "NR-S16",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B02",
+      "source": {
+        "label": "Aster-9 Isolation Reel",
+        "scene": "Depot intake witness",
+        "chapter": "22:54:08"
+      },
+      "text": "EVENT: IN-PERSON DEPOT ATTESTATION. LOCATION: Reliquary Depot, intake dais two. TIME: 22:54:08. ROOT PRESENTED: OC-441-RC. The bearer completed live palm-pressure confirmation before Aster-9 and accepted capsule RQ-771. Remote authorization and proxy intake were not used.",
+      "displayOrder": 16
+    },
+    {
+      "spanId": "NR-S17",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B02",
+      "source": {
+        "label": "Manual Continuity Envelope",
+        "scene": "Envelope E-3908",
+        "chapter": "Meridian Clinic outage desk"
+      },
+      "text": "CLAIMANT: Rhea Calder — signed 22:32. LICENSED WITNESS: Dr. Ilyan Rho — signed 22:32. MUNICIPAL CLERK: Toma Sava — countersigned; minute field blank. The paper bears all three signatures. The form contains no machine timestamp beneath the countersign and no notation declaring the envelope accepted or rejected.",
+      "displayOrder": 17
+    },
+    {
+      "spanId": "NR-S18",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B02",
+      "source": {
+        "label": "Bellwether-3 Service Spool",
+        "scene": "Local restart sequence",
+        "chapter": "23:04"
+      },
+      "text": "23:04:00 — startup chime begins. 23:04:12 — municipal witness service available. 23:04:20 — startup chime ends. 23:04:37 — envelope E-3908 scanned at outage desk. The spool records service state and scan handling; it contains no event for the clerk’s act of writing.",
+      "displayOrder": 18
+    },
+    {
+      "spanId": "NR-S19",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B02",
+      "source": {
+        "label": "Market Reader Receipt with Porter Statement",
+        "scene": "Lantern Market parcel stall",
+        "chapter": "22:54:40"
+      },
+      "text": "Reader receipt: 22:54:40; parcel LM-88 collected; signature OC-441-RC/F17. Porter Yara Deyn states: “She had Rhea Calder’s face and voice and answered when I called Rhea. The reader made her sign again because the first mark omitted the slash. The final receipt showed F17.”",
+      "displayOrder": 19
+    },
+    {
+      "spanId": "NR-S20",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B02",
+      "source": {
+        "label": "Vault Seven Analog Placement Sheet",
+        "scene": "Emergency inventory board",
+        "chapter": "Planned positions after 21:30"
+      },
+      "text": "PLANNED HOLDING POSITIONS AFTER 21:30 — RQ-768: Vault Four; RQ-771: Vault Seven; RQ-775: Dispatch cage. Floor note: update when staffed. The municipal seal box beside RQ-771 is blank. No observation time, departure notation, or receiving signature appears on the sheet.",
+      "displayOrder": 20
+    },
+    {
+      "spanId": "NR-S21",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B02",
+      "source": {
+        "label": "OTSA Synthetic Maintenance Record",
+        "scene": "Kest-4 evacuation rehearsal load",
+        "chapter": "20:10"
+      },
+      "text": "UNIT: KEST-4. REGISTRY: non-citizen synthetic instrument. ROOT RECEPTACLE: none installed. TEMPORARY LOAD: East Spine evacuation rehearsal package derived from courier Rhea Calder’s route-memory rehearsal; passenger-compliance face and voice interface enabled. Package is read-only and scheduled for purge after the exercise.",
+      "displayOrder": 21
+    },
+    {
+      "spanId": "NR-S22",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B02",
+      "source": {
+        "label": "Street Testimony",
+        "scene": "East Spine evacuation queue",
+        "chapter": "Approximately 22:05"
+      },
+      "text": "Passenger Ren Kos: “The maintenance body looked and sounded like Rhea. It told me where she once hid during a pressure drill, something that sounded private, and it answered when people called it Rhea. Then it turned and I saw KEST-4 printed across the neck plate and an OTSA synthetic badge on the coat.”",
+      "displayOrder": 22
+    },
+    {
+      "spanId": "NR-S23",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B03",
+      "source": {
+        "label": "Ordinal Vaultworks Sworn Disclosure",
+        "scene": "Custody examination",
+        "chapter": "Inquiry Day 1"
+      },
+      "text": "Joren Malk, for Ordinal Vaultworks: “Capsule RQ-771 remained physically inside Vault Seven for the entire period from 21:30 through 23:30 on 14 Vesper. It did not pass through the East Vault Gate, enter a transport capsule, or arrive at Reliquary Depot during that interval.”",
+      "displayOrder": 23
+    },
+    {
+      "spanId": "NR-S24",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B03",
+      "source": {
+        "label": "Tribunal Custody Laboratory Report",
+        "scene": "Capsule RQ-771 examination",
+        "chapter": "Inquiry Exhibit 12"
+      },
+      "text": "The laboratory verified the municipal signature and sensor chain on gate packet EVG-2219. Its seal-surface read identifies RQ-771 crossing East Vault Gate outbound at 22:19:06. Registry review found no second capsule assigned that serial and no substitution marker. Departure seal DV7-771 and receiving seal RD-771 are also genuine and share transfer reference OR-14V-77.",
+      "displayOrder": 24
+    },
+    {
+      "spanId": "NR-S25",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B03",
+      "source": {
+        "label": "Municipal Witness Grid Forensic Memorandum",
+        "scene": "Bellwether-3 and Aster-9 review",
+        "chapter": "Inquiry Exhibit 18"
+      },
+      "text": "Bellwether-3 and Aster-9 reconciled their isolation reels at 23:21:00. No fault seal naming either engine or the relevant interval had been filed before reconciliation. Bellwether’s 22:49:00 release event and Aster’s 22:54:08 in-person depot event therefore entered the municipal record with ordinary authoritative force. Both events identify root OC-441-RC; the separate Lantern Market record identifies branch OC-441-RC/F17.",
+      "displayOrder": 25
+    },
+    {
+      "spanId": "NR-S26",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B03",
+      "source": {
+        "label": "Tribunal Transcript",
+        "scene": "Examination of Dr. Ilyan Rho",
+        "chapter": "Inquiry Day 1, Session 3"
+      },
+      "text": "Inspector Nia Varo: “Was the 23:00 notice a shorthand for body death?” Dr. Rho: “No. I selected final civil death so the wage, estate, and liability accounts would close. I knew the citywide restoration notice had not yet issued. It was not a draft and it was not an unconfirmed-status marker.”",
+      "displayOrder": 26
+    },
+    {
+      "spanId": "NR-S27",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B03",
+      "source": {
+        "label": "Tribunal Transcript",
+        "scene": "Envelope timing examination",
+        "chapter": "Inquiry Day 2, Session 1"
+      },
+      "text": "Clerk Toma Sava: “I countersigned while Bellwether’s startup chime was sounding. I believe my pen was off the paper before the service lamp steadied.” Technician Mev Arin: “The scan occurred at 23:04:37. The ink still looked wet, but I cannot say when the stroke began or ended, and the chime continued on both sides of the 23:04:12 service return.”",
+      "displayOrder": 27
+    },
+    {
+      "spanId": "NR-S28",
+      "worldId": "world-neon-reliquary",
+      "bookId": "NR-B03",
+      "source": {
+        "label": "Court of Civic Continuance Interim Order",
+        "scene": "Preservation of rights",
+        "chapter": "Inquiry Day 3"
+      },
+      "text": "Pending final findings, subsistence payments to Rhea Calder shall continue and root OC-441-RC shall be frozen against further transfer. Envelope E-3908 is held provisionally. This protective order does not determine whether the clerk countersigned before Bellwether-3 resumed service and does not adjudicate which disputed location record reflects the lawful bearer.",
+      "displayOrder": 28
+    }
+  ]
+}

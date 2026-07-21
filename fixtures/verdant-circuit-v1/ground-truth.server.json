@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "ground-truth/v1",
+  "fixtureId": "verdant-circuit-v1",
+  "fixtureVersion": "1.0.0",
+  "cases": [
+    {
+      "caseId": "VC-C01",
+      "expected": "contradiction",
+      "ruleIds": [
+        "VC-R03",
+        "VC-R04"
+      ],
+      "spanIds": [
+        "VC-S10",
+        "VC-S11",
+        "VC-S12"
+      ],
+      "multiHop": false
+    },
+    {
+      "caseId": "VC-C02",
+      "expected": "contradiction",
+      "ruleIds": [
+        "VC-R08",
+        "VC-R10"
+      ],
+      "spanIds": [
+        "VC-S13",
+        "VC-S14",
+        "VC-S15"
+      ],
+      "multiHop": true
+    },
+    {
+      "caseId": "VC-C03",
+      "expected": "ambiguity",
+      "ruleIds": [
+        "VC-R09",
+        "VC-R11"
+      ],
+      "spanIds": [
+        "VC-S16",
+        "VC-S17",
+        "VC-S18"
+      ],
+      "multiHop": true,
+      "missingFact": "Whether the Kestrel-7 seed-state emitted its irreversible wingpulse before crossing the Mistorchard east marker."
+    },
+    {
+      "caseId": "VC-C04",
+      "expected": "contradiction",
+      "ruleIds": [
+        "VC-R12",
+        "VC-R14"
+      ],
+      "spanIds": [
+        "VC-S24",
+        "VC-S26",
+        "VC-S28"
+      ],
+      "multiHop": true
+    },
+    {
+      "caseId": "VC-C05",
+      "expected": "none",
+      "ruleIds": [
+        "VC-R05"
+      ],
+      "spanIds": [
+        "VC-S19",
+        "VC-S20"
+      ],
+      "multiHop": false
+    },
+    {
+      "caseId": "VC-C06",
+      "expected": "none",
+      "ruleIds": [
+        "VC-R06",
+        "VC-R10"
+      ],
+      "spanIds": [
+        "VC-S21",
+        "VC-S22"
+      ],
+      "multiHop": false
+    },
+    {
+      "caseId": "VC-C07",
+      "expected": "none",
+      "ruleIds": [
+        "VC-R07"
+      ],
+      "spanIds": [
+        "VC-S23"
+      ],
+      "multiHop": false
+    }
+  ]
+}
