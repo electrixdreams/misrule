@@ -13,6 +13,11 @@
   --rust-bright: #ef7964;
   --violet: #6f6385;
   --violet-bright: #d4c6ff;
+
+  /* Shared corner-chamfer for brass instrument chrome (fascia bar, wind-key,
+     entry-gate button) — one consistent faceted-plate cut on all four
+     corners instead of each surface inventing its own polygon. */
+  --facet-cut: .6rem;
   --display: var(--font-cormorant), "Baskerville", "Palatino Linotype", "Book Antiqua", serif;
   --text: var(--font-spectral), "Iowan Old Style", "Baskerville", "Palatino Linotype", serif;
   --ui: var(--font-inter), "Avenir Next", "Gill Sans", "Trebuchet MS", sans-serif;
@@ -145,7 +150,7 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   align-items: stretch;
   border: 1px solid rgba(224,193,123,.32);
   background: linear-gradient(145deg, #2c2013, #101616 55%, #1c2527);
-  clip-path: polygon(0 0, 100% 0, 100% 78%, 98.5% 100%, 1.5% 100%, 0 78%);
+  clip-path: polygon(var(--facet-cut) 0, calc(100% - var(--facet-cut)) 0, 100% var(--facet-cut), 100% calc(100% - var(--facet-cut)), calc(100% - var(--facet-cut)) 100%, var(--facet-cut) 100%, 0 calc(100% - var(--facet-cut)), 0 var(--facet-cut));
   box-shadow: 0 10px 26px rgba(0,0,0,.38);
 }
 .instrument-fascia > * {
@@ -298,7 +303,7 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   border: 1px solid var(--brass-light);
   color: #eee5d1;
   background: linear-gradient(180deg, rgba(224,193,123,.2), transparent 23%), linear-gradient(180deg, #674a2c, #241d17 56%, #0b1010);
-  clip-path: polygon(7% 0, 93% 0, 100% 50%, 93% 100%, 7% 100%, 0 50%);
+  clip-path: polygon(var(--facet-cut) 0, calc(100% - var(--facet-cut)) 0, 100% var(--facet-cut), 100% calc(100% - var(--facet-cut)), calc(100% - var(--facet-cut)) 100%, var(--facet-cut) 100%, 0 calc(100% - var(--facet-cut)), 0 var(--facet-cut));
   box-shadow: inset 0 0 0 3px #101313, 0 8px 24px rgba(0,0,0,.52), 0 0 24px rgba(224,193,123,.08);
   cursor: pointer;
 }
@@ -435,7 +440,7 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
 .entry-gate h2 { margin: .6rem 0 .4rem; color: #f0e7d4; font-family: var(--display); font-size: clamp(4rem, 9vw, 7.5rem); font-weight: 500; letter-spacing: -.04em; line-height: .78; }
 .entry-tagline { color: #eee5d3 !important; font-family: var(--display); font-size: clamp(1.25rem, 2vw, 1.65rem) !important; font-style: italic; }
 .entry-gate p { color: #aab7b1; font-family: var(--text); font-size: 1.03rem; line-height: 1.6; }
-.entry-gate button { padding: .9rem 1.5rem; border: 1px solid var(--brass-light); color: #eee3ca; background: linear-gradient(180deg, #523b22, #111718); clip-path: polygon(8% 0, 92% 0, 100% 50%, 92% 100%, 8% 100%, 0 50%); cursor: pointer; }
+.entry-gate button { padding: .9rem 1.5rem; border: 1px solid var(--brass-light); color: #eee3ca; background: linear-gradient(180deg, #523b22, #111718); clip-path: polygon(var(--facet-cut) 0, calc(100% - var(--facet-cut)) 0, 100% var(--facet-cut), 100% calc(100% - var(--facet-cut)), calc(100% - var(--facet-cut)) 100%, var(--facet-cut) 100%, 0 calc(100% - var(--facet-cut)), 0 var(--facet-cut)); cursor: pointer; }
 .entry-gate small { display: block; margin-top: .75rem; color: #7f8c87; font-size: .64rem; }
 
 .modal-backdrop { z-index: 70; background: rgba(4,7,8,.82); }
