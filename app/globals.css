@@ -116,6 +116,9 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   min-height: 100dvh;
   height: 100dvh;
   isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(.8rem, 1.6vh, 1.4rem);
 }
 .misrule-shell::before {
   content: "";
@@ -135,10 +138,8 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
    settings grouped into one engraved brass control strip instead of three
    independently-floating corner medallions. ----- */
 .instrument-fascia {
-  position: fixed;
-  top: clamp(1rem, 2.2vw, 1.8rem);
-  left: clamp(1rem, 2.3vw, 2.4rem);
-  right: clamp(1rem, 2.3vw, 2.4rem);
+  flex: 0 0 auto;
+  margin: clamp(1rem, 2.2vw, 1.8rem) clamp(1rem, 2.3vw, 2.4rem) 0;
   z-index: 30;
   display: flex;
   align-items: stretch;
@@ -158,8 +159,12 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   color: inherit;
   text-align: left;
 }
-.fascia-seal, .fascia-status { border-right: 1px solid rgba(224,193,123,.18); }
-.fascia-seal, .fascia-settings { cursor: pointer; }
+.fascia-return, .fascia-seal, .fascia-status { border-right: 1px solid rgba(224,193,123,.18); }
+.fascia-return, .fascia-seal, .fascia-settings { cursor: pointer; }
+
+.fascia-return { grid-template-columns: .65rem auto; flex: 0 0 auto; gap: .55rem; color: #cabf9d; font-size: .74rem; font-weight: 650; white-space: nowrap; transition: color .16s ease; }
+.fascia-return:hover, .fascia-return:focus-visible { color: var(--brass-light); }
+.fascia-return > i { width: .55rem; height: .55rem; border-left: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); }
 
 .fascia-seal { grid-template-columns: 2.5rem 1fr; flex: 1 1 15rem; color: #e8e3d7; }
 .fascia-seal > i { width: 2.15rem; aspect-ratio: 1; border: 1px solid var(--brass-light); border-radius: 50%; box-shadow: inset 0 0 0 5px rgba(0,0,0,.32), 0 0 0 1px rgba(0,0,0,.8); }
@@ -180,10 +185,11 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
 .fascia-settings small { color: #94a39e; font-size: .58rem; max-width: 13rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .workspace {
-  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(27rem, 36vw) minmax(0, 1fr);
-  padding: clamp(3.7rem, 5.6vh, 4.5rem) clamp(1.1rem, 1.8vw, 2rem) clamp(.9rem, 1.7vh, 1.5rem);
+  padding: 0 clamp(1.1rem, 1.8vw, 2rem) clamp(.9rem, 1.7vh, 1.5rem);
 }
 
 .instrument-stage {
@@ -195,7 +201,11 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   place-items: center;
   transition: opacity .35s ease, transform .5s cubic-bezier(.2,.82,.22,1);
 }
-.instrument-stage[data-quieted] { opacity: .76; transform: translateX(-.45rem); }
+/* Quieting while reading (Rules/Record/Method, or a selected finding) is a
+   pure opacity signal now — the instrument's width and the workspace's grid
+   columns stay constant across every station so the map never resizes as
+   you click through World/Rules/Record/Findings. */
+.instrument-stage[data-quieted] { opacity: .76; }
 .instrument {
   position: relative;
   display: flex;
@@ -205,10 +215,8 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   max-width: 100%;
   gap: var(--space-sm);
   filter: drop-shadow(0 24px 40px rgba(0,0,0,.55));
-  transition: width .5s ease, transform .5s ease;
+  transition: opacity .35s ease;
 }
-.misrule-shell[data-quieted] .workspace { grid-template-columns: minmax(21rem, 25vw) minmax(0, 1fr); }
-.misrule-shell[data-quieted] .instrument { width: min(23vw, 20rem); transform: scale(.97); }
 
 /* ----- Instrument heading: a fixed band above the route board, so the
    wordmark can never collide with the route art below it. ----- */
@@ -273,7 +281,7 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
 
 /* Method demoted from a fifth equal waypoint to a small corner colophon
    seal — reference/compliance copy, not a stop on the investigative route. */
-.station--colophon { width: 3.4rem; min-height: 2.4rem; top: 95%; left: 90%; }
+.station--colophon { width: 3.4rem; min-height: 2.4rem; top: 90%; left: 89%; }
 .station--colophon i { width: 1.45rem; margin-bottom: .2rem; border-radius: 45% 55% 52% 48% / 55% 45% 55% 45%; background: linear-gradient(145deg, #7c342a, #4c1c17 70%); box-shadow: inset 0 0 0 3px rgba(7,9,10,.65), 0 3px 8px rgba(0,0,0,.4); }
 .station--colophon i::after { display: none; }
 .station--colophon span { font-size: .56rem; }
@@ -488,22 +496,22 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
 @media (max-width: 1080px) {
   body { overflow: auto; }
   .misrule-shell { min-height: 100dvh; height: auto; }
-  .workspace, .misrule-shell[data-quieted] .workspace { min-height: 100dvh; grid-template-columns: 1fr; grid-template-rows: minmax(31rem, 54vh) minmax(42rem, 70vh); padding-top: 5.8rem; }
-  .instrument-stage[data-quieted] { opacity: .86; transform: none; }
-  .instrument, .misrule-shell[data-quieted] .instrument { width: min(24rem, 70vw); transform: none; }
+  .workspace { min-height: 100dvh; grid-template-columns: 1fr; grid-template-rows: minmax(31rem, 54vh) minmax(42rem, 70vh); }
+  .instrument-stage[data-quieted] { opacity: .86; }
+  .instrument { width: min(24rem, 70vw); }
   .archive-leaf { min-height: 42rem; }
 }
 
 @media (max-width: 680px) {
-  .instrument-fascia { left: .7rem; right: .7rem; }
+  .instrument-fascia { margin: 1rem .7rem 0; }
   .instrument-fascia > * { padding: .5rem .55rem; }
-  .fascia-seal small, .fascia-status small, .fascia-settings small { display: none; }
+  .fascia-return span, .fascia-seal small, .fascia-status small, .fascia-settings small { display: none; }
   .fascia-seal { grid-template-columns: 1.9rem 1fr; flex-basis: auto; }
   .fascia-seal > i { width: 1.9rem; }
   .fascia-status { flex-basis: auto; }
   .fascia-settings { flex-basis: auto; }
-  .workspace, .misrule-shell[data-quieted] .workspace { grid-template-rows: minmax(28rem, 52vh) minmax(48rem, auto); padding-inline: .55rem; }
-  .instrument, .misrule-shell[data-quieted] .instrument { width: min(20rem, 78vw); }
+  .workspace { grid-template-rows: minmax(28rem, 52vh) minmax(48rem, auto); padding-inline: .55rem; }
+  .instrument { width: min(20rem, 78vw); }
   .instrument-heading h1 { font-size: 2.35rem; }
   .instrument-heading p { font-size: .76rem; }
   .station { width: 5rem; }
@@ -527,9 +535,9 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
 }
 
 @media (max-height: 760px) and (min-width: 1081px) {
-  .workspace { padding-top: 4.4rem; padding-bottom: .65rem; }
+  .misrule-shell { gap: .65rem; }
+  .workspace { padding-bottom: .65rem; }
   .instrument { width: min(24vw, 22rem); }
-  .misrule-shell[data-quieted] .instrument { width: min(20vw, 17rem); }
   .leaf-paper { padding-top: 1.35rem; }
   .leaf-header { margin-bottom: .75rem; }
   .leaf-header h2 { font-size: clamp(1.85rem, 2.75vw, 2.5rem); }
@@ -562,10 +570,10 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
 .pack-counts dt { margin: 0; color: #6b5a3c; font-size: .62rem; letter-spacing: .05em; text-transform: uppercase; font-family: var(--ui); font-weight: 500; }
 .pack-counts dd { margin: .2rem 0 0; font-family: var(--display); font-size: 1.4rem; color: var(--ink); }
 
-.import-dialog button, .confirm-dialog button, .library-return {
+.import-dialog button, .confirm-dialog button {
   padding: .6rem .9rem; min-height: 2.4rem; border: 1px solid rgba(184,217,214,.4); color: #ece6da; background: #172020; cursor: pointer; font-size: .82rem;
 }
-.import-validate, .confirm-primary, .library-return {
+.import-validate, .confirm-primary {
   border-color: var(--brass-light); background: linear-gradient(180deg, #594124, #151b1b); color: #f1e6ce;
 }
 
@@ -641,11 +649,6 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
 .library-error-title { margin: 0 0 .4rem; font-family: var(--display); font-size: 1.3rem; color: #f0d9cf; }
 .library-error p { margin: .3rem 0; color: #cbb7af; font-family: var(--text); line-height: 1.5; }
 .library-error-line, .import-error-line { color: #ef9d8d; font-size: .82rem; margin: .6rem 0; font-family: var(--text); }
-
-.library-return {
-  position: fixed; left: clamp(1rem, 2.3vw, 2.4rem); bottom: clamp(1rem, 2.2vh, 1.4rem); z-index: 29; max-width: 18rem;
-  box-shadow: 0 8px 20px rgba(0,0,0,.28);
-}
 
 /* ===== Import dialog ===== */
 .import-backdrop { background: rgba(4,7,8,.82); }
@@ -887,7 +890,6 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
 @media (max-width: 680px) {
   .world-library { padding-inline: .7rem; }
   .pack-counts { grid-template-columns: repeat(3, 1fr); }
-  .library-return { left: .7rem; bottom: .7rem; max-width: 16rem; }
   .editor-header { grid-template-columns: 1fr; }
   .editor-header-actions { justify-content: flex-start; }
   .editor-grid, .validation-summary button { grid-template-columns: 1fr; }

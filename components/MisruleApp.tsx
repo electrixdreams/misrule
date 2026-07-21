@@ -195,6 +195,13 @@ export function MisruleApp({
       <a className="skip-link" href="#leaf-content">Skip to archive leaf</a>
 
       <header className="instrument-fascia">
+        {onReturnToLibrary ? (
+          <button className="fascia-return" type="button" onClick={onReturnToLibrary} aria-label="Return to the World Library">
+            <i aria-hidden="true" />
+            <span>World Library</span>
+          </button>
+        ) : null}
+
         <button className="fascia-seal" type="button" onClick={() => dispatch({ type: "DRAWER_OPENED" })} aria-haspopup="dialog" aria-label={`Open active world controls for ${pack.title}`}>
           <i aria-hidden="true" />
           <span><strong>Misrule</strong><small>{pack.title}<br />{sourceDisclosure.shortLabel}</small></span>
@@ -209,12 +216,6 @@ export function MisruleApp({
           <small>{displayedRuntime.provider === "openrouter" ? "OpenRouter" : "Compatible API"} · {displayedRuntime.model}</small>
         </button>
       </header>
-
-      {onReturnToLibrary ? (
-        <button className="library-return" type="button" onClick={onReturnToLibrary} aria-label="Return to the World Library">
-          <span>World Library</span>
-        </button>
-      ) : null}
 
       <div className="workspace">
         <ClockworkInstrument
