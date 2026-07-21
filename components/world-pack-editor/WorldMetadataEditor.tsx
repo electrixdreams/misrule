@@ -5,17 +5,31 @@ type FieldError = (path: string) => string | undefined;
 export function WorldMetadataEditor({
   draft,
   fieldError,
+  showIds,
+  active = true,
+  onExpand,
   onChange,
 }: {
   draft: WorldPackDraft;
   fieldError: FieldError;
+  showIds: boolean;
+  active?: boolean;
+  onExpand?: () => void;
   onChange: (draft: WorldPackDraft) => void;
 }) {
   const update = (patch: Partial<WorldPackDraft>) => onChange({ ...draft, ...patch });
   const updateWorld = (patch: Partial<WorldPackDraft["world"]>) => onChange({ ...draft, world: { ...draft.world, ...patch } });
 
   return (
-    <section id="editor-section-pack" className="editor-section" tabIndex={-1} aria-labelledby="pack-metadata-heading">
+    <section
+      id="editor-section-pack"
+      className="editor-section"
+      data-active={active}
+      tabIndex={-1}
+      aria-labelledby="pack-metadata-heading"
+      onClick={() => { if (!active) onExpand?.(); }}
+      onFocus={onExpand}
+    >
       <div className="editor-section-head">
         <span className="leaf-eyebrow">Identity</span>
         <h2 id="pack-metadata-heading">Pack metadata</h2>
@@ -75,14 +89,13 @@ export function WorldMetadataEditor({
         </div>
       </div>
 
-      <details className="editor-identifiers">
-        <summary>Identifiers</summary>
-        <dl>
+      {showIds ? (
+        <dl className="editor-identifiers">
           <div><dt>packId</dt><dd>{draft.packId}</dd></div>
           <div><dt>worldId</dt><dd>{draft.world.worldId}</dd></div>
           <div><dt>schemaVersion</dt><dd>{draft.schemaVersion}</dd></div>
         </dl>
-      </details>
+      ) : null}
     </section>
   );
 }

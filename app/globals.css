@@ -696,17 +696,23 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
 .confirm-dialog--danger { border-left-color: var(--rust-bright); }
 .confirm-primary { border-color: var(--rust-bright); background: linear-gradient(180deg, #6e2f25, #1a1310); color: #f3ddd5; }
 
-/* ===== World Pack editor ===== */
+/* ===== World Pack editor =====
+   Shell is a column flexbox: a fixed header, a scrolling body (steps/
+   sections), and a footer that's always on screen — the save/validation
+   state and the create-mode stepper controls should never require
+   scrolling back up a long page to reach. */
 .world-pack-editor {
-  min-height: 100dvh;
   height: 100dvh;
-  overflow: auto;
-  padding: clamp(2.2rem, 5vh, 3.8rem) clamp(.9rem, 4vw, 3.2rem) 3rem;
+  display: flex;
+  flex-direction: column;
   color: #eee8dc;
 }
 .editor-header {
+  flex: 0 0 auto;
   max-width: 70rem;
-  margin: 0 auto 1rem;
+  width: 100%;
+  margin: 0 auto;
+  padding: clamp(2rem, 4.5vh, 3.2rem) clamp(.9rem, 4vw, 3.2rem) 1rem;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 1rem;
@@ -722,7 +728,7 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
 }
 .editor-header p { max-width: 45rem; margin: 0; color: #b6c0bb; font-family: var(--text); line-height: 1.55; }
 .editor-header-actions { display: flex; flex-wrap: wrap; gap: .55rem; justify-content: flex-end; }
-.editor-header button, .editor-section button, .validation-summary button {
+.editor-header button, .editor-section button, .editor-review button, .validation-summary button, .editor-footer button {
   min-height: 2.35rem;
   padding: .55rem .82rem;
   border: 1px solid rgba(184,217,214,.4);
@@ -731,28 +737,75 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   cursor: pointer;
   font-size: .8rem;
 }
-.editor-header button:nth-last-child(-n+2), .editor-section-head button {
+.editor-section-head button, .editor-footer-actions button:last-child {
   border-color: var(--brass-light);
   background: linear-gradient(180deg, #594124, #151b1b);
   color: #f1e6ce;
 }
-.editor-status-row {
-  max-width: 70rem;
-  margin: 0 auto 1rem;
+
+.editor-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 clamp(.9rem, 4vw, 3.2rem) 2.2rem;
+}
+
+/* ----- Create-mode stepper: a pill tracker + Back/Next, always visible at
+   the top of the scrolling body. Clicking a pill (or a collapsed section's
+   own header) jumps straight there — the stepper doesn't gate progress. ----- */
+.editor-stepper { max-width: 70rem; margin: 0 auto 1.1rem; }
+.editor-steps { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0 0 .7rem; padding: 0; list-style: none; }
+.editor-step-pill {
   display: flex;
-  flex-wrap: wrap;
-  gap: .7rem;
   align-items: center;
+  gap: .5rem;
+  padding: .5rem .85rem .5rem .55rem;
+  border: 1px solid rgba(194,161,98,.3);
+  background: rgba(0,0,0,.2);
+  color: #b9c2bc;
+  cursor: pointer;
+  font-size: .76rem;
 }
-.editor-status-row span {
-  padding: .36rem .6rem;
-  border: 1px solid rgba(184,217,214,.28);
-  color: #b8c5bf;
-  font-size: .72rem;
+.editor-step-number {
+  display: grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 1px solid rgba(194,161,98,.4);
+  border-radius: 50%;
+  color: #cabf9d;
+  font-size: .68rem;
+  font-weight: 650;
 }
-.editor-status-row span[data-dirty="true"] { border-color: rgba(224,193,123,.58); color: var(--brass-light); }
-.editor-status-row p { margin: 0; color: #b8d9d6; font-size: .78rem; }
-.editor-status-row p[role="alert"] { color: #ef9d8d; }
+.editor-step-pill[data-done="true"] .editor-step-number { border-color: var(--brass); background: rgba(224,193,123,.16); color: var(--brass-light); }
+.editor-step-pill[data-active="true"] {
+  border-color: var(--brass-light);
+  background: linear-gradient(180deg, rgba(224,193,123,.22), rgba(21,27,27,.4));
+  color: #f1e6ce;
+}
+.editor-step-pill[data-active="true"] .editor-step-number { border-color: var(--brass-light); background: var(--brass-light); color: #1b1410; }
+.editor-step-controls { display: flex; gap: .55rem; }
+
+.editor-step-summary {
+  max-width: 70rem;
+  margin: -.3rem auto .5rem;
+  padding: 0 .2rem;
+  color: #8b988f;
+  font-size: .74rem;
+  font-style: italic;
+}
+.editor-example {
+  max-width: 70rem;
+  margin: 0 auto .7rem;
+  padding: .65rem .85rem;
+  border: 1px dashed rgba(184,217,214,.32);
+  color: #b8d0cb;
+  font-family: var(--text);
+  font-size: .82rem;
+  line-height: 1.5;
+}
+.editor-example strong { color: var(--moonstone-bright); font-family: var(--ui); font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; margin-right: .4rem; }
+
 .editor-valid, .validation-summary {
   max-width: 70rem;
   margin: 0 auto 1rem;
@@ -838,6 +891,7 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
 }
 .editor-grid textarea { resize: vertical; line-height: 1.45; }
 .editor-grid small { color: #93a19b; font-size: .62rem; line-height: 1.35; }
+.rule-type-help { display: block; margin-top: .1rem; color: #93a19b; font-size: .64rem; line-height: 1.35; }
 .field-error { color: #ef9d8d !important; }
 .editor-stack { display: grid; gap: .9rem; }
 .editor-item {
@@ -846,6 +900,7 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   padding: .9rem;
   border: 1px solid rgba(184,217,214,.22);
   background: rgba(0,0,0,.17);
+  scroll-margin-top: 1rem;
 }
 .editor-item legend {
   padding: 0 .35rem;
@@ -873,19 +928,79 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   line-height: 1.45;
 }
 .editor-identifiers {
-  margin-top: 1rem;
-  border-top: 1px solid rgba(194,161,98,.18);
-  padding-top: .8rem;
-}
-.editor-identifiers summary { cursor: pointer; color: #d8cfba; font-size: .78rem; }
-.editor-identifiers dl {
   display: grid;
   gap: .45rem;
-  margin: .7rem 0 0;
+  margin-top: 1rem;
+  padding-top: .8rem;
+  border-top: 1px solid rgba(194,161,98,.18);
 }
 .editor-identifiers div { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: .7rem; }
 .editor-identifiers dt { color: #9aa6a0; font-size: .66rem; }
 .editor-identifiers dd { margin: 0; color: #e8c98c; font-size: .7rem; overflow-wrap: anywhere; }
+
+/* ----- Collapse mechanic shared by create-mode's one-section-at-a-time
+   stepper and edit-mode's one-item-at-a-time outline. Sections/items stay
+   mounted when collapsed (max-height, not display:none) specifically so a
+   validation issue's scrollIntoView()+focus() can still land on — and
+   auto-expand via the onFocus below — a section that isn't currently open. */
+.editor-section[data-active="false"] > *:not(.editor-section-head),
+.editor-item[data-active="false"] > *:not(legend) {
+  max-height: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+.editor-section[data-active="false"], .editor-item[data-active="false"] { cursor: pointer; }
+.editor-section[data-active="false"]:hover, .editor-item[data-active="false"]:hover { border-color: var(--brass-light); }
+.editor-section[data-active="false"] .editor-section-head { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+.editor-section-head h2::before, .editor-item legend::before {
+  content: "▾";
+  display: inline-block;
+  margin-right: .4rem;
+  color: #8b988f;
+  font-size: .65rem;
+}
+.editor-section[data-active="false"] .editor-section-head h2::before, .editor-item[data-active="false"] legend::before { content: "▸"; }
+
+.editor-review {
+  max-width: 70rem;
+  margin: 1.4rem auto 0;
+  padding: 1.05rem 1.15rem;
+  border: 1px solid rgba(184,217,214,.4);
+  border-left: .28rem solid var(--moonstone);
+  background: linear-gradient(160deg, rgba(36,42,42,.88), rgba(10,14,14,.94));
+  scroll-margin-top: 1rem;
+}
+.editor-review-recap { margin: 0 0 .6rem; color: #f1e7d2; font-family: var(--display); font-size: 1.15rem; }
+
+.editor-footer {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .8rem 1.4rem;
+  padding: .8rem clamp(.9rem, 4vw, 3.2rem);
+  border-top: 1px solid rgba(194,161,98,.32);
+  background: linear-gradient(180deg, rgba(20,26,26,.97), rgba(8,12,12,.99));
+  box-shadow: 0 -8px 20px rgba(0,0,0,.3);
+}
+.editor-status-row { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+.editor-status-row span {
+  padding: .36rem .6rem;
+  border: 1px solid rgba(184,217,214,.28);
+  color: #b8c5bf;
+  font-size: .72rem;
+}
+.editor-status-row span[data-dirty="true"] { border-color: rgba(224,193,123,.58); color: var(--brass-light); }
+.editor-status-row p { margin: 0; color: #b8d9d6; font-size: .78rem; }
+.editor-status-row p[role="alert"] { color: #ef9d8d; }
+.id-toggle { display: flex; align-items: center; gap: .4rem; color: #9eaaa5; font-size: .72rem; cursor: pointer; white-space: nowrap; }
+.editor-footer-actions { display: flex; flex-wrap: wrap; gap: .55rem; margin-left: auto; }
 
 @media (max-width: 680px) {
   .world-library { padding-inline: .7rem; }
@@ -895,4 +1010,7 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   .editor-grid, .validation-summary button { grid-template-columns: 1fr; }
   .editor-section { padding: .9rem; }
   .editor-identifiers div { grid-template-columns: 1fr; gap: .2rem; }
+  .editor-footer { flex-direction: column; align-items: stretch; }
+  .editor-footer-actions { margin-left: 0; }
+  .editor-step-pill { font-size: .7rem; padding: .4rem .6rem .4rem .4rem; }
 }

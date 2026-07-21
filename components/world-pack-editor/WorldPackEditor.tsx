@@ -105,6 +105,28 @@ function titleForDelete(deleteTarget: PendingDelete): string {
   return "Delete evidence span";
 }
 
+// The four sections a draft breaks into. Create mode steps through them one
+// at a time (a guided wizard); edit mode leaves all four in place but starts
+// with only "identity" expanded, so opening an existing pack doesn't dump
+// every book/rule/span on screen at once — click any collapsed header or
+// item to expand it. Both modes share the exact same section components;
+// only which item (if any) is force-expanded differs.
+type SectionId = "identity" | "books" | "rules" | "spans";
+
+const SECTIONS: { id: SectionId; label: string }[] = [
+  { id: "identity", label: "World & Pack" },
+  { id: "books", label: "Books" },
+  { id: "rules", label: "Rules" },
+  { id: "spans", label: "Evidence" },
+];
+
+const SECTION_EXAMPLES: Record<SectionId, string> = {
+  identity: "Premise: “Every promise leaves a visible mark on the promiser’s skin.” Summary: “A trade city where oaths are enforced by scars, not courts.”",
+  books: "Title “The Ledger of Low Tide” · Slug “ledger-low-tide” · Source label “Ledger of Low Tide, Ch. 1–4.”",
+  rules: "Type constraint · Text “No oath-scar can be hidden by clothing, paint, or magic.”",
+  spans: "Source label “Ledger of Low Tide” · Scene “The tide-market oath” · Text “Mira pressed her thumb to the ledger; the mark bloomed silver before the ink dried.”",
+};
+
 export function WorldPackEditor({
   mode,
   packId,
@@ -127,6 +149,11 @@ export function WorldPackEditor({
   const [deleteWarning, setDeleteWarning] = useState<{ section: "books" | "rules" | "spans"; message: string } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [exitPromptOpen, setExitPromptOpen] = useState(false);
+  const [showIds, setShowIds] = useState(false);
+  const [activeSection, setActiveSection] = useState<SectionId>("identity");
+  const [activeBookIndex, setActiveBookIndex] = useState(0);
+  const [activeRuleIndex, setActiveRuleIndex] = useState(0);
+  const [activeSpanIndex, setActiveSpanIndex] = useState(0);
 
   useEffect(() => {
     if (!dirty) return;
@@ -274,6 +301,12 @@ export function WorldPackEditor({
     );
   }
 
+  const isEdit = currentMode === "edit";
+  const safeBookIndex = draft.books.length ? Math.min(activeBookIndex, draft.books.length - 1) : 0;
+  const safeRuleIndex = draft.rules.length ? Math.min(activeRuleIndex, draft.rules.length - 1) : 0;
+  const safeSpanIndex = draft.spans.length ? Math.min(activeSpanIndex, draft.spans.length - 1) : 0;
+  const sectionIndex = SECTIONS.findIndex((section) => section.id === activeSection);
+
   return (
     <main className="world-pack-editor" aria-labelledby="editor-title">
       <header className="editor-header">
@@ -286,53 +319,172 @@ export function WorldPackEditor({
         </div>
         <div className="editor-header-actions">
           <button type="button" onClick={requestReturn}>Return to library</button>
+        </div>
+      </header>
+
+      <div className="editor-body">
+        {currentMode === "create" ? (
+          <div className="editor-stepper">
+            <ol className="editor-steps" aria-label="Creation steps">
+              {SECTIONS.map((section, index) => (
+                <li key={section.id}>
+                  <button
+                    type="button"
+                    className="editor-step-pill"
+                    data-active={activeSection === section.id}
+                    data-done={index < sectionIndex}
+                    aria-current={activeSection === section.id ? "step" : undefined}
+                    onClick={() => setActiveSection(section.id)}
+                  >
+                    <span className="editor-step-number">{index + 1}</span>
+                    <span>{section.label}</span>
+                  </button>
+                </li>
+              ))}
+              <li>
+                <button
+                  type="button"
+                  className="editor-step-pill"
+                  onClick={() => document.getElementById("editor-review")?.scrollIntoView({ block: "start" })}
+                >
+                  <span className="editor-step-number">{SECTIONS.length + 1}</span>
+                  <span>Review</span>
+                </button>
+              </li>
+            </ol>
+            <div className="editor-step-controls">
+              <button
+                type="button"
+                onClick={() => { if (sectionIndex > 0) setActiveSection(SECTIONS[sectionIndex - 1].id); }}
+                disabled={sectionIndex <= 0}
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (sectionIndex < SECTIONS.length - 1) setActiveSection(SECTIONS[sectionIndex + 1].id);
+                  else document.getElementById("editor-review")?.scrollIntoView({ block: "start" });
+                }}
+              >
+                {sectionIndex >= SECTIONS.length - 1 ? "Review" : "Next"}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        <ValidationSummary issues={issues} validated={validated} />
+
+        {currentMode === "create" && activeSection !== "identity" ? (
+          <p className="editor-step-summary">{draft.world.title || "Untitled world"} · pack “{draft.title || "untitled"}”</p>
+        ) : null}
+        {currentMode === "create" && activeSection === "identity" ? (
+          <p className="editor-example"><strong>Example.</strong> {SECTION_EXAMPLES.identity}</p>
+        ) : null}
+        <WorldMetadataEditor
+          draft={draft}
+          fieldError={fieldError}
+          showIds={showIds}
+          active={activeSection === "identity"}
+          onExpand={() => setActiveSection("identity")}
+          onChange={updateDraft}
+        />
+
+        {currentMode === "create" && activeSection !== "books" ? (
+          <p className="editor-step-summary">{draft.books.length} book{draft.books.length === 1 ? "" : "s"}</p>
+        ) : null}
+        {currentMode === "create" && activeSection === "books" ? (
+          <p className="editor-example"><strong>Example.</strong> {SECTION_EXAMPLES.books}</p>
+        ) : null}
+        <BookEditor
+          books={draft.books}
+          fieldError={fieldError}
+          showIds={showIds}
+          dependencyWarning={deleteWarning?.section === "books" ? deleteWarning.message : null}
+          active={activeSection === "books"}
+          onExpand={() => setActiveSection("books")}
+          activeItemIndex={isEdit ? safeBookIndex : undefined}
+          onItemExpand={setActiveBookIndex}
+          onAdd={() => { setActiveSection("books"); setActiveBookIndex(draft.books.length); updateDraft({ ...draft, books: [...draft.books, createDraftBook()] }); }}
+          onChange={(index, book) => updateDraft({ ...draft, books: draft.books.map((candidate, candidateIndex) => candidateIndex === index ? book : candidate) })}
+          onMove={(index, direction) => updateDraft({ ...draft, books: moveItem(draft.books, index, direction) })}
+          onRequestDelete={requestBookDelete}
+        />
+
+        {currentMode === "create" && activeSection !== "rules" ? (
+          <p className="editor-step-summary">{draft.rules.length} rule{draft.rules.length === 1 ? "" : "s"}</p>
+        ) : null}
+        {currentMode === "create" && activeSection === "rules" ? (
+          <p className="editor-example"><strong>Example.</strong> {SECTION_EXAMPLES.rules}</p>
+        ) : null}
+        <RuleEditor
+          rules={draft.rules}
+          books={draft.books}
+          fieldError={fieldError}
+          showIds={showIds}
+          warning={deleteWarning?.section === "rules" ? deleteWarning.message : null}
+          active={activeSection === "rules"}
+          onExpand={() => setActiveSection("rules")}
+          activeItemIndex={isEdit ? safeRuleIndex : undefined}
+          onItemExpand={setActiveRuleIndex}
+          onAdd={() => { setActiveSection("rules"); setActiveRuleIndex(draft.rules.length); updateDraft({ ...draft, rules: [...draft.rules, { ...createDraftRule(), bookId: draft.books[0]?.bookId ?? "" }] }); }}
+          onChange={(index, rule) => updateDraft({ ...draft, rules: draft.rules.map((candidate, candidateIndex) => candidateIndex === index ? rule : candidate) })}
+          onMove={(index, direction) => updateDraft({ ...draft, rules: moveItem(draft.rules, index, direction) })}
+          onRequestDelete={(index) => setPendingDelete({ kind: "rule", index, title: draft.rules[index].title || draft.rules[index].ruleId })}
+        />
+
+        {currentMode === "create" && activeSection !== "spans" ? (
+          <p className="editor-step-summary">{draft.spans.length} evidence span{draft.spans.length === 1 ? "" : "s"}</p>
+        ) : null}
+        {currentMode === "create" && activeSection === "spans" ? (
+          <p className="editor-example"><strong>Example.</strong> {SECTION_EXAMPLES.spans}</p>
+        ) : null}
+        <SpanEditor
+          spans={draft.spans}
+          books={draft.books}
+          fieldError={fieldError}
+          showIds={showIds}
+          warning={deleteWarning?.section === "spans" ? deleteWarning.message : null}
+          active={activeSection === "spans"}
+          onExpand={() => setActiveSection("spans")}
+          activeItemIndex={isEdit ? safeSpanIndex : undefined}
+          onItemExpand={setActiveSpanIndex}
+          onAdd={() => { setActiveSection("spans"); setActiveSpanIndex(draft.spans.length); updateDraft({ ...draft, spans: [...draft.spans, createDraftSpan(draft.books[0]?.bookId ?? "")] }); }}
+          onChange={(index, span) => updateDraft({ ...draft, spans: draft.spans.map((candidate, candidateIndex) => candidateIndex === index ? span : candidate) })}
+          onMove={(index, direction) => updateDraft({ ...draft, spans: moveItem(draft.spans, index, direction) })}
+          onRequestDelete={(index) => setPendingDelete({ kind: "span", index, title: draft.spans[index].sourceLabel || draft.spans[index].spanId })}
+        />
+
+        {currentMode === "create" ? (
+          <section id="editor-review" className="editor-review" aria-labelledby="editor-review-heading">
+            <div className="editor-section-head">
+              <span className="leaf-eyebrow">Ready?</span>
+              <h2 id="editor-review-heading">Review &amp; save</h2>
+            </div>
+            <p className="editor-review-recap">
+              “{draft.title || "Untitled pack"}” · {draft.books.length} book{draft.books.length === 1 ? "" : "s"} · {draft.rules.length} rule{draft.rules.length === 1 ? "" : "s"} · {draft.spans.length} evidence span{draft.spans.length === 1 ? "" : "s"}
+            </p>
+            <p className="editor-guidance">Validate to check every declared rule and span against Misrule&apos;s canonical schema, then save. You can always come back and keep editing.</p>
+          </section>
+        ) : null}
+      </div>
+
+      <footer className="editor-footer">
+        <div className="editor-status-row">
+          <span data-dirty={dirty ? "true" : "false"}>{dirty ? "Unsaved changes" : "Saved state"}</span>
+          {saveMessage ? <p role="status">{saveMessage}</p> : null}
+          {saveError ? <p role="alert">{saveError}</p> : null}
+        </div>
+        <label className="id-toggle">
+          <input type="checkbox" checked={showIds} onChange={(event) => setShowIds(event.target.checked)} />
+          Show internal IDs
+        </label>
+        <div className="editor-footer-actions">
           <button type="button" onClick={validate}>Validate</button>
           <button type="button" onClick={() => save(false)}>Save</button>
           <button type="button" onClick={() => save(true)}>Save and return</button>
         </div>
-      </header>
-
-      <div className="editor-status-row">
-        <span data-dirty={dirty ? "true" : "false"}>{dirty ? "Unsaved changes" : "Saved state"}</span>
-        {saveMessage ? <p role="status">{saveMessage}</p> : null}
-        {saveError ? <p role="alert">{saveError}</p> : null}
-      </div>
-
-      <ValidationSummary issues={issues} validated={validated} />
-
-      <WorldMetadataEditor draft={draft} fieldError={fieldError} onChange={updateDraft} />
-
-      <BookEditor
-        books={draft.books}
-        fieldError={fieldError}
-        dependencyWarning={deleteWarning?.section === "books" ? deleteWarning.message : null}
-        onAdd={() => updateDraft({ ...draft, books: [...draft.books, createDraftBook()] })}
-        onChange={(index, book) => updateDraft({ ...draft, books: draft.books.map((candidate, candidateIndex) => candidateIndex === index ? book : candidate) })}
-        onMove={(index, direction) => updateDraft({ ...draft, books: moveItem(draft.books, index, direction) })}
-        onRequestDelete={requestBookDelete}
-      />
-
-      <RuleEditor
-        rules={draft.rules}
-        books={draft.books}
-        fieldError={fieldError}
-        warning={deleteWarning?.section === "rules" ? deleteWarning.message : null}
-        onAdd={() => updateDraft({ ...draft, rules: [...draft.rules, { ...createDraftRule(), bookId: draft.books[0]?.bookId ?? "" }] })}
-        onChange={(index, rule) => updateDraft({ ...draft, rules: draft.rules.map((candidate, candidateIndex) => candidateIndex === index ? rule : candidate) })}
-        onMove={(index, direction) => updateDraft({ ...draft, rules: moveItem(draft.rules, index, direction) })}
-        onRequestDelete={(index) => setPendingDelete({ kind: "rule", index, title: draft.rules[index].title || draft.rules[index].ruleId })}
-      />
-
-      <SpanEditor
-        spans={draft.spans}
-        books={draft.books}
-        fieldError={fieldError}
-        warning={deleteWarning?.section === "spans" ? deleteWarning.message : null}
-        onAdd={() => updateDraft({ ...draft, spans: [...draft.spans, createDraftSpan(draft.books[0]?.bookId ?? "")] })}
-        onChange={(index, span) => updateDraft({ ...draft, spans: draft.spans.map((candidate, candidateIndex) => candidateIndex === index ? span : candidate) })}
-        onMove={(index, direction) => updateDraft({ ...draft, spans: moveItem(draft.spans, index, direction) })}
-        onRequestDelete={(index) => setPendingDelete({ kind: "span", index, title: draft.spans[index].sourceLabel || draft.spans[index].spanId })}
-      />
+      </footer>
 
       <ConfirmWorldPackAction
         open={pendingDelete !== null}
