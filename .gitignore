@@ -22,3 +22,7 @@
 
 # TypeScript
 *.tsbuildinfo
+
+# Misc
+run-misrule-12d2-final
+/run-misrule-12d2-final.sh
