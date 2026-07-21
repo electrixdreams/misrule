@@ -76,11 +76,16 @@ function stageResult(stage: GatewayStageResult["stage"], output: unknown): Gatew
     stage,
     promptVersion: stage === "candidate-generation" ? CANDIDATE_PROMPT_VERSION : ADJUDICATION_PROMPT_VERSION,
     schemaVersion: stage === "candidate-generation" ? CANDIDATE_SCHEMA_VERSION : ADJUDICATION_SCHEMA_VERSION,
+    outputTransport: "json_schema",
     output,
     provider: "test",
     endpointHost: "test",
     requestedModel: "test-model",
     returnedModel: "test-model",
+    upstreamRequestId: null,
+    openRouterRequestId: null,
+    generationId: null,
+    routerMetadata: null,
     rawResponse: { output },
     latencyMs: 0,
   };
@@ -376,6 +381,7 @@ describe("audit service", () => {
       model: "openai/gpt-oss-120b:free",
       apiKey: "session-secret",
       credentialSource: "request",
+      outputTransport: "json_schema",
     });
 
     const response = await executeLiveAudit(request, { gateway });
@@ -419,6 +425,7 @@ describe("audit service", () => {
       model: "google/gemini-2.5-flash",
       apiKey: "session-secret",
       credentialSource: "request",
+      outputTransport: "json_schema",
     });
 
     await expect(gateway.generateCandidates(buildModelInput(worldPackSchema.parse(ashglass)))).resolves.toMatchObject({ output: "not-json" });
@@ -436,6 +443,7 @@ describe("audit service", () => {
       model: "retired/model",
       apiKey: "session-secret",
       credentialSource: "request",
+      outputTransport: "json_schema",
     });
 
     await expect(gateway.generateCandidates(buildModelInput(worldPackSchema.parse(ashglass)))).rejects.toMatchObject({
@@ -459,6 +467,7 @@ describe("audit service", () => {
       model: "google/gemini-2.5-flash",
       apiKey: "session-secret",
       credentialSource: "request",
+      outputTransport: "json_schema",
     });
 
     await expect(gateway.generateCandidates(buildModelInput(worldPackSchema.parse(ashglass)))).rejects.toMatchObject({
@@ -472,8 +481,60 @@ describe("audit service", () => {
         upstreamType: "invalid_request_error",
         upstreamRequestId: `req-${status}`,
         requestedModel: "google/gemini-2.5-flash",
+        outputTransport: "json_schema",
       },
     });
+  });
+
+  it("sends OpenRouter JSON-object transport without schema fallback and still parses canonically", async () => {
+    const candidateOutput = candidateOutputFrom(deterministicMockOutput.findings, deterministicMockOutput.unresolved_questions);
+    const adjudicationOutput = {
+      schema_version: "adjudication-output/v1" as const,
+      decisions: deterministicMockOutput.findings.map((finding, index) => acceptDecision(`candidate-${String(index + 1).padStart(2, "0")}`, finding)),
+    };
+    const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({
+      id: "generation-test",
+      object: "chat.completion",
+      created: 1,
+      model: "google/gemini-2.5-flash",
+      choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(candidateOutput) } }],
+    }), { status: 200, headers: { "Content-Type": "application/json", "x-generation-id": "gen-candidate", "x-openrouter-request-id": "orr-candidate" } })).mockResolvedValueOnce(new Response(JSON.stringify({
+      id: "adjudication-test",
+      object: "chat.completion",
+      created: 2,
+      model: "google/gemini-2.5-flash",
+      openrouter_metadata: {
+        requested: "google/gemini-2.5-flash",
+        strategy: "direct",
+        attempt: 1,
+        endpoints: { total: 1, available: [{ provider: "Google AI Studio", model: "google/gemini-2.5-flash", selected: true, private: "drop" }] },
+        pipeline: [{ type: "response_healing", data: { raw: "drop" } }],
+      },
+      choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: JSON.stringify(adjudicationOutput) } }],
+    }), { status: 200, headers: { "Content-Type": "application/json", "x-request-id": "req-adjudication" } }));
+    vi.stubGlobal("fetch", fetchMock);
+    const gateway = new OpenAICompatibleAuditGateway({
+      provider: "openrouter",
+      apiEndpoint: "https://openrouter.ai/api/v1",
+      endpointHost: "openrouter.ai",
+      model: "google/gemini-2.5-flash",
+      apiKey: "session-secret",
+      credentialSource: "request",
+      outputTransport: "json_object",
+    });
+
+    const response = await executeLiveAudit(request, { gateway });
+    expect(response.audit).toMatchObject({ schemaVersion: "audit-api/v2", source: { mode: "live", requestedModel: "google/gemini-2.5-flash" } });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const candidateBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    const adjudicationBody = JSON.parse(String(fetchMock.mock.calls[1][1]?.body));
+    expect(candidateBody.response_format).toEqual({ type: "json_object" });
+    expect(adjudicationBody.response_format).toEqual({ type: "json_object" });
+    expect(JSON.stringify(candidateBody.response_format)).not.toContain("json_schema");
+    expect(candidateBody).toMatchObject({ model: "google/gemini-2.5-flash", max_tokens: 16_000, provider: { require_parameters: true } });
+    expect(adjudicationBody).toMatchObject({ model: "google/gemini-2.5-flash", max_tokens: 16_000, provider: { require_parameters: true } });
+    expect(candidateBody.messages[0].content).toContain("Return one valid JSON object and no markdown or surrounding prose.");
+    expect(new Headers(fetchMock.mock.calls[0][1]?.headers as HeadersInit).get("X-OpenRouter-Metadata")).toBe("enabled");
   });
 
   it("uses provider-portable transport schema_version enums instead of JSON Schema const", () => {
@@ -495,13 +556,45 @@ describe("audit service", () => {
     try {
       const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
         error: {
-          message: `schema rejected; Bearer sk-secret-1234567890; excerpt: ${storyExcerpt}`,
-          code: "invalid_schema",
-          type: "invalid_request_error",
+          code: 400,
+          message: "Provider returned error",
+          metadata: {
+            error_type: "invalid_request",
+            provider_code: 400,
+            provider_name: "Google AI Studio",
+            raw: JSON.stringify({
+              error: {
+                message: `schema rejected; Bearer sk-or-v1-secretsecret; excerpt: ${storyExcerpt}`,
+                status: "INVALID_ARGUMENT",
+                code: 400,
+                details: [{ requestBody: "must not persist" }],
+              },
+              ignored: { huge: "must not persist" },
+            }),
+          },
+        },
+        openrouter_metadata: {
+          requested: "google/gemini-2.5-flash",
+          strategy: "direct",
+          attempt: 1,
+          endpoints: {
+            total: 2,
+            available: [
+              { provider: "Google AI Studio", model: "google/gemini-2.5-flash", selected: false, secret: "drop" },
+              { provider: "Google Vertex", model: "google/gemini-2.5-flash", selected: true, secret: "drop" },
+            ],
+          },
+          attempts: [{ provider: "Google AI Studio", status: 400 }],
+          pipeline: [{ type: "guardrail", data: { raw: "drop" } }],
         },
       }), {
-        status: 422,
-        headers: { "Content-Type": "application/json", "x-request-id": "req-candidate" },
+        status: 400,
+        headers: {
+          "Content-Type": "application/json",
+          "x-request-id": "req-candidate",
+          "x-openrouter-request-id": "orr-candidate",
+          "x-generation-id": "gen-candidate",
+        },
       }));
       vi.stubGlobal("fetch", fetchMock);
       const gateway = new OpenAICompatibleAuditGateway({
@@ -511,6 +604,7 @@ describe("audit service", () => {
         model: "google/gemini-2.5-flash",
         apiKey: "session-secret",
         credentialSource: "request",
+        outputTransport: "json_schema",
       });
 
       await expect(executeLiveAudit(request, { gateway, evidenceDirectory: directory })).rejects.toMatchObject({
@@ -531,17 +625,36 @@ describe("audit service", () => {
         normalizedAudit: null,
         finalValidation: { status: "NOT_RUN" },
         providerFailure: {
-          upstreamStatus: 422,
-          upstreamCode: "invalid_schema",
-          upstreamType: "invalid_request_error",
+          upstreamStatus: 400,
+          upstreamCode: 400,
+          upstreamType: "invalid_request",
           upstreamRequestId: "req-candidate",
+          openRouterRequestId: "orr-candidate",
+          generationId: "gen-candidate",
+          openRouterErrorType: "invalid_request",
+          openRouterProviderCode: 400,
+          openRouterProviderName: "Google AI Studio",
+          sanitizedUpstreamMessage: "Provider returned error",
+          sanitizedProviderDetail: "error.message: schema rejected; Bearer [redacted]; excerpt: [redacted-pack-text]; error.status: INVALID_ARGUMENT; error.code: 400",
+          routerMetadata: {
+            attempt: 1,
+            requestedModel: "google/gemini-2.5-flash",
+            strategy: "direct",
+            endpointCounts: { total: 2, available: 2 },
+            attemptedProviderNames: ["Google AI Studio", "Google Vertex"],
+            selectedProviderName: "Google Vertex",
+          },
+          outputTransport: "json_schema",
         },
       });
       const serialized = JSON.stringify(evidence);
       expect(serialized).not.toContain("session-secret");
       expect(serialized).not.toContain("Authorization");
-      expect(serialized).not.toContain("sk-secret-1234567890");
+      expect(serialized).not.toContain("sk-or-v1-secretsecret");
       expect(serialized).not.toContain(storyExcerpt);
+      expect(serialized).not.toContain("requestBody");
+      expect(serialized).not.toContain("must not persist");
+      expect(serialized).not.toContain("guardrail");
       expect(evidence).not.toHaveProperty("candidateInput");
       expect(evidence).not.toHaveProperty("rawCandidateResponse");
     } finally {
@@ -572,6 +685,7 @@ describe("audit service", () => {
         model: "google/gemini-2.5-flash",
         apiKey: "session-secret",
         credentialSource: "request",
+        outputTransport: "json_schema",
       });
 
       await expect(executeLiveAudit(request, { gateway, evidenceDirectory: directory })).rejects.toMatchObject({
@@ -615,6 +729,7 @@ describe("audit service", () => {
         model: "google/gemini-2.5-flash",
         apiKey: "session-secret",
         credentialSource: "request",
+        outputTransport: "json_schema",
       });
 
       await expect(executeLiveAudit(

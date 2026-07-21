@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getPublicRuntimeDefaults, resolveRuntimeSettings } from "@/lib/runtime-settings.server";
+import { auditRequestSchema } from "@/lib/contracts";
+import { getPublicRuntimeDefaults, outputTransportFromEnvironment, resolveRuntimeSettings } from "@/lib/runtime-settings.server";
 
 const request = {
   schemaVersion: "audit-api/v2" as const,
@@ -37,7 +38,40 @@ describe("runtime settings", () => {
         apiKey: "session-secret",
       },
     });
-    expect(resolved).toMatchObject({ apiKey: "session-secret", credentialSource: "request", endpointHost: "openrouter.ai" });
+    expect(resolved).toMatchObject({ apiKey: "session-secret", credentialSource: "request", endpointHost: "openrouter.ai", outputTransport: "json_schema" });
+  });
+
+  it("defaults output transport to strict JSON schema", () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "server-secret");
+    expect(outputTransportFromEnvironment()).toBe("json_schema");
+    expect(resolveRuntimeSettings(request)).toMatchObject({ outputTransport: "json_schema" });
+  });
+
+  it("resolves server-side JSON-object output transport", () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "server-secret");
+    vi.stubEnv("MISRULE_OUTPUT_TRANSPORT", "json_object");
+    expect(outputTransportFromEnvironment()).toBe("json_object");
+    expect(resolveRuntimeSettings(request)).toMatchObject({ outputTransport: "json_object" });
+  });
+
+  it("rejects invalid output transport values clearly", () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "server-secret");
+    vi.stubEnv("MISRULE_OUTPUT_TRANSPORT", "json_schema_then_json_object");
+    expect(() => resolveRuntimeSettings(request)).toThrow("MISRULE_OUTPUT_TRANSPORT must be json_schema or json_object.");
+  });
+
+  it("does not accept browser-supplied output transport settings", () => {
+    const parsed = auditRequestSchema.safeParse({
+      ...request,
+      runtime: {
+        provider: "openrouter",
+        apiEndpoint: "https://openrouter.ai/api/v1",
+        model: "google/gemini-2.5-flash",
+        apiKey: "session-secret",
+        outputTransport: "json_object",
+      },
+    });
+    expect(parsed.success).toBe(false);
   });
 
   it("rejects endpoints outside the deployment allowlist", () => {

@@ -14,7 +14,10 @@ export type ResolvedRuntimeSettings = {
   model: string;
   apiKey: string;
   credentialSource: "request" | "server";
+  outputTransport: OutputTransport;
 };
+
+export type OutputTransport = "json_schema" | "json_object";
 
 function providerFromEnvironment(): AuditProvider {
   return process.env.MISRULE_PROVIDER === "openai-compatible" ? "openai-compatible" : "openrouter";
@@ -33,6 +36,13 @@ function modelFromEnvironment(provider: AuditProvider) {
 function serverApiKey(provider: AuditProvider) {
   if (provider === "openrouter") return process.env.OPENROUTER_API_KEY?.trim() || "";
   return process.env.OPENAI_COMPATIBLE_API_KEY?.trim() || process.env.OPENAI_API_KEY?.trim() || "";
+}
+
+export function outputTransportFromEnvironment(): OutputTransport {
+  const configured = process.env.MISRULE_OUTPUT_TRANSPORT?.trim();
+  if (!configured) return "json_schema";
+  if (configured === "json_schema" || configured === "json_object") return configured;
+  throw new AuditServiceError("SERVICE_MISCONFIGURED", "MISRULE_OUTPUT_TRANSPORT must be json_schema or json_object.", 500, false);
 }
 
 export function allowedEndpointHosts() {
@@ -99,5 +109,6 @@ export function resolveRuntimeSettings(request: AuditRequest): ResolvedRuntimeSe
     model: request.runtime?.model.trim() || modelFromEnvironment(provider),
     apiKey,
     credentialSource: request.runtime?.apiKey ? "request" : "server",
+    outputTransport: outputTransportFromEnvironment(),
   };
 }

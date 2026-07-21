@@ -29,6 +29,8 @@ Set `OPENROUTER_API_KEY` only in `.env.local` or the deployment secret store. Al
 
 Settings exposes the provider, API endpoint, model, and masked API key without adding a sixth Clockwork station. Server calls are restricted to HTTPS hosts listed in `MISRULE_ALLOWED_PROVIDER_HOSTS`; deployment owners must explicitly allow any additional trusted OpenAI-compatible host.
 
+`MISRULE_OUTPUT_TRANSPORT` is server-only and defaults to `json_schema`. Set it to `json_object` only when a deployment intentionally wants OpenRouter JSON mode; browser Settings cannot override it, and the server still applies the canonical Zod and semantic validation gates before returning `audit-api/v2`.
+
 For deterministic local QA without an API call, set `MISRULE_AUDIT_MODE=mock`. Mock output exercises the same validation, normalization, reducer, and rendering boundaries, but is never evidence of live provider behavior.
 
 ## Verification

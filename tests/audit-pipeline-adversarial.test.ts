@@ -35,11 +35,16 @@ function stageResult(stage: GatewayStageResult["stage"], output: unknown): Gatew
     stage,
     promptVersion: stage === "candidate-generation" ? CANDIDATE_PROMPT_VERSION : ADJUDICATION_PROMPT_VERSION,
     schemaVersion: stage === "candidate-generation" ? CANDIDATE_SCHEMA_VERSION : ADJUDICATION_SCHEMA_VERSION,
+    outputTransport: "json_schema",
     output,
     provider: "test",
     endpointHost: "test",
     requestedModel: "test-model",
     returnedModel: "test-model",
+    upstreamRequestId: null,
+    openRouterRequestId: null,
+    generationId: null,
+    routerMetadata: null,
     rawResponse: { output },
     latencyMs: 0,
   };
@@ -213,6 +218,7 @@ describe("12C provider transport", () => {
       model: "openai/gpt-oss-120b:free",
       apiKey: "session-secret",
       credentialSource: "request",
+      outputTransport: "json_schema",
     });
   }
 
@@ -421,6 +427,7 @@ describe("12C explicit verification items", () => {
       model: "openai/gpt-oss-120b:free",
       apiKey: "session-secret",
       credentialSource: "request",
+      outputTransport: "json_schema",
     });
     const response = await executeLiveAudit(bundledRequest, { gateway });
     expect(response.ok).toBe(true);
@@ -460,6 +467,7 @@ describe("12C explicit verification items", () => {
       model: "openai/gpt-oss-120b:free",
       apiKey: "session-secret",
       credentialSource: "request",
+      outputTransport: "json_schema",
     });
     const response = await executeLiveAudit(bundledRequest, { gateway });
     expect(response.audit.findings).toEqual([]);

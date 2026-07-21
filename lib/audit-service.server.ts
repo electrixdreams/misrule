@@ -7,12 +7,12 @@ import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import type { AuditRequest, AuditResultDto, AuditSuccessResponse } from "@/lib/contracts";
 import { acceptedAdjudicationFromCandidates, adjudicationOutputTransportSchema, validateAdjudicationOutput } from "@/lib/adjudication-output.server";
-import { AuditServiceError, type ProviderFailureDiagnostic } from "@/lib/audit-errors";
+import { AuditServiceError, type ProviderFailureDiagnostic, type SafeOpenRouterMetadata } from "@/lib/audit-errors";
 import { candidateOutputFromModelOutput, candidateOutputTransportSchema, modelOutputFromCandidates, validateCandidateOutput, type CanonicalCandidate } from "@/lib/candidate-output.server";
 import { WorldPackRepositoryError, loadBundledWorldPack } from "@/lib/world-pack-catalog.server";
 import { deterministicMockOutput } from "@/lib/mock-audit.server";
 import { modelAuditOutputSchema, validateModelOutputSemantics, type ModelAuditOutput } from "@/lib/model-output.server";
-import { resolveRuntimeSettings, type ResolvedRuntimeSettings } from "@/lib/runtime-settings.server";
+import { resolveRuntimeSettings, type OutputTransport, type ResolvedRuntimeSettings } from "@/lib/runtime-settings.server";
 import { MAX_WORLD_PACK_BYTES, serializedWorldPackByteLength, worldPackSchema, type WorldPack } from "@/lib/world-pack";
 
 export { AuditServiceError } from "@/lib/audit-errors";
@@ -50,11 +50,16 @@ export type GatewayStageResult = {
   stage: "candidate-generation" | "focused-adjudication";
   promptVersion: string;
   schemaVersion: string;
+  outputTransport: OutputTransport;
   output: unknown;
   provider: string;
   endpointHost: string;
   requestedModel: string;
   returnedModel: string;
+  upstreamRequestId: string | null;
+  openRouterRequestId: string | null;
+  generationId: string | null;
+  routerMetadata: SafeOpenRouterMetadata | null;
   rawResponse: unknown;
   latencyMs: number;
 };
@@ -156,11 +161,16 @@ type ProviderErrorContext = {
   stage: GatewayStageResult["stage"];
   promptVersion: string;
   schemaVersion: string;
+  outputTransport: OutputTransport;
   provider: string;
   endpointHost: string;
   requestedModel: string;
   started: number;
 };
+
+function objectRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
 
 function primitiveDiagnosticValue(value: unknown): string | number | null {
   return typeof value === "string" || typeof value === "number" ? value : null;
@@ -180,8 +190,10 @@ function headerValue(headers: unknown, name: string): string | null {
 function sanitizeUpstreamMessage(value: unknown): string | null {
   if (typeof value !== "string" || !value.trim()) return null;
   const sanitized = value
+    .replace(/\n\s+at\s+[\s\S]*$/g, "\n[redacted-stack]")
+    .replace(/\b(Authorization|Proxy-Authorization|api-key|x-api-key|OPENROUTER_API_KEY)\s*[:=]\s*[^\s,;]+/gi, "$1=[redacted]")
     .replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]+/gi, "$1[redacted]")
-    .replace(/\bsk-[A-Za-z0-9_-]{10,}\b/g, "[redacted-api-key]")
+    .replace(/\bsk-(?:or-v1-)?[A-Za-z0-9_-]{10,}\b/g, "[redacted-api-key]")
     .replace(/https:\/\/[^\s"'<>?]+[?][^\s"'<>]+/g, "[redacted-url]")
     .replace(/\{(?:[^{}]|\{[^{}]*\}){200,}\}/g, "[redacted-json-body]")
     .replace(/\s+/g, " ")
@@ -190,31 +202,113 @@ function sanitizeUpstreamMessage(value: unknown): string | null {
   return sanitized.length <= 500 ? sanitized : `${sanitized.slice(0, 497)}...`;
 }
 
-function providerFailureDiagnostic(error: InstanceType<typeof OpenAI.APIError>, context: ProviderErrorContext): ProviderFailureDiagnostic {
-  const nested = typeof error.error === "object" && error.error !== null ? (error.error as Record<string, unknown>) : {};
+function safeProviderDetail(raw: unknown): string | null {
+  let value = raw;
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+    try {
+      value = JSON.parse(trimmed);
+    } catch {
+      return sanitizeUpstreamMessage(trimmed);
+    }
+  }
+  const record = objectRecord(value);
+  if (Object.keys(record).length === 0) return null;
+  const errorRecord = objectRecord(record.error);
+  const fields = [
+    ["error.message", errorRecord.message],
+    ["error.status", errorRecord.status],
+    ["error.code", errorRecord.code],
+    ["message", record.message],
+    ["status", record.status],
+  ]
+    .map(([label, fieldValue]) => {
+      const primitive = primitiveDiagnosticValue(fieldValue);
+      return primitive === null ? null : `${label}: ${primitive}`;
+    })
+    .filter((field): field is string => Boolean(field));
+  return sanitizeUpstreamMessage(fields.join("; "));
+}
+
+function safeString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function safeNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function safeOpenRouterMetadata(value: unknown): SafeOpenRouterMetadata | null {
+  const metadata = objectRecord(value);
+  if (Object.keys(metadata).length === 0) return null;
+  const endpoints = objectRecord(metadata.endpoints);
+  const available = Array.isArray(endpoints.available) ? endpoints.available.map(objectRecord) : [];
+  const attempts = Array.isArray(metadata.attempts) ? metadata.attempts.map(objectRecord) : [];
+  const attemptedProviderNames = [...new Set(
+    [...available.map((endpoint) => safeString(endpoint.provider)), ...attempts.map((attempt) => safeString(attempt.provider))].filter((name): name is string => Boolean(name)),
+  )];
+  const selectedProviderName = available.map((endpoint) => (endpoint.selected === true ? safeString(endpoint.provider) : undefined)).find(Boolean) ?? null;
+  const safe: SafeOpenRouterMetadata = {};
+  const attempt = safeNumber(metadata.attempt);
+  const requestedModel = safeString(metadata.requested);
+  const strategy = safeString(metadata.strategy);
+  const total = safeNumber(endpoints.total);
+  if (attempt !== undefined) safe.attempt = attempt;
+  if (requestedModel) safe.requestedModel = requestedModel;
+  if (strategy) safe.strategy = strategy;
+  if (total !== undefined || available.length > 0) safe.endpointCounts = { ...(total !== undefined ? { total } : {}), available: available.length };
+  if (attemptedProviderNames.length > 0) safe.attemptedProviderNames = attemptedProviderNames;
+  if (selectedProviderName) safe.selectedProviderName = selectedProviderName;
+  return Object.keys(safe).length > 0 ? safe : null;
+}
+
+function responseWithSafeRouterMetadata(response: unknown, headers: Headers) {
+  const record = objectRecord(response);
+  const routerMetadata = safeOpenRouterMetadata(record.openrouter_metadata);
+  return {
+    ...record,
+    ...(routerMetadata ? { openrouter_metadata: routerMetadata } : "openrouter_metadata" in record ? { openrouter_metadata: null } : {}),
+    responseHeaders: {
+      "x-generation-id": headerValue(headers, "x-generation-id"),
+      "x-request-id": headerValue(headers, "x-request-id"),
+      "x-openrouter-request-id": headerValue(headers, "x-openrouter-request-id"),
+    },
+  };
+}
+
+function providerFailureDiagnostic(error: InstanceType<typeof OpenAI.APIError>, context: ProviderErrorContext, openRouterEnvelope: unknown): ProviderFailureDiagnostic {
+  const nested = objectRecord(error.error);
+  const metadata = objectRecord(nested.metadata);
+  const envelope = objectRecord(openRouterEnvelope);
   return {
     stage: context.stage,
     provider: context.provider,
     endpointHost: context.endpointHost,
     requestedModel: context.requestedModel,
+    outputTransport: context.outputTransport,
     upstreamStatus: error.status ?? null,
     upstreamCode: primitiveDiagnosticValue(error.code) ?? primitiveDiagnosticValue(nested.code),
-    upstreamType: typeof error.type === "string" ? error.type : typeof nested.type === "string" ? nested.type : null,
-    upstreamRequestId:
-      typeof error.requestID === "string"
-        ? error.requestID
-        : headerValue(error.headers, "x-request-id") ?? headerValue(error.headers, "x-openrouter-request-id"),
+    upstreamType: safeString(error.type) ?? safeString(nested.type) ?? safeString(metadata.error_type) ?? null,
+    upstreamRequestId: safeString(error.requestID) ?? headerValue(error.headers, "x-request-id"),
+    openRouterRequestId: headerValue(error.headers, "x-openrouter-request-id"),
+    generationId: headerValue(error.headers, "x-generation-id"),
+    openRouterErrorType: safeString(metadata.error_type) ?? null,
+    openRouterProviderCode: primitiveDiagnosticValue(metadata.provider_code),
+    openRouterProviderName: safeString(metadata.provider_name) ?? null,
     sanitizedUpstreamMessage: sanitizeUpstreamMessage(typeof nested.message === "string" ? nested.message : error.message),
+    sanitizedProviderDetail: safeProviderDetail(metadata.raw),
+    routerMetadata: safeOpenRouterMetadata(envelope.openrouter_metadata),
     latencyMs: Date.now() - context.started,
     promptVersion: context.promptVersion,
     schemaVersion: context.schemaVersion,
   };
 }
 
-function classifyProviderError(error: unknown, context: ProviderErrorContext): AuditServiceError {
+function classifyProviderError(error: unknown, context: ProviderErrorContext, openRouterEnvelope: unknown): AuditServiceError {
   if (error instanceof AuditServiceError) return error;
   if (error instanceof OpenAI.APIError) {
-    const diagnostic = providerFailureDiagnostic(error, context);
+    const diagnostic = providerFailureDiagnostic(error, context, openRouterEnvelope);
     if (error.status === 401 || error.status === 403) return new AuditServiceError("UPSTREAM_AUTH_ERROR", "The live audit service could not authenticate.", 503, false, diagnostic);
     if (error.status === 429) return new AuditServiceError("UPSTREAM_RATE_LIMIT", "The live audit service is rate limited.", 429, true, diagnostic);
     if (error.status === 400 || error.status === 404 || error.status === 422) {
@@ -228,6 +322,7 @@ function classifyProviderError(error: unknown, context: ProviderErrorContext): A
 
 export class OpenAICompatibleAuditGateway implements AuditModelGateway {
   private readonly client: OpenAI;
+  private lastOpenRouterErrorEnvelope: unknown = null;
 
   constructor(private readonly settings: ResolvedRuntimeSettings) {
     this.client = new OpenAI({
@@ -235,11 +330,31 @@ export class OpenAICompatibleAuditGateway implements AuditModelGateway {
       baseURL: settings.apiEndpoint,
       timeout: 60_000,
       maxRetries: 0,
+      fetch: (url, init) => this.fetchWithDiagnostics(url, init),
       defaultHeaders:
         settings.provider === "openrouter"
-          ? { "HTTP-Referer": "https://github.com/electrixdreams/misrule", "X-OpenRouter-Title": "Misrule" }
+          ? { "HTTP-Referer": "https://github.com/electrixdreams/misrule", "X-OpenRouter-Title": "Misrule", "X-OpenRouter-Metadata": "enabled" }
           : undefined,
     });
+  }
+
+  private async fetchWithDiagnostics(url: RequestInfo | URL, init?: RequestInit) {
+    this.lastOpenRouterErrorEnvelope = null;
+    const response = await fetch(url, init);
+    if (this.settings.provider === "openrouter" && !response.ok) {
+      try {
+        this.lastOpenRouterErrorEnvelope = await response.clone().json();
+      } catch {
+        this.lastOpenRouterErrorEnvelope = null;
+      }
+    }
+    return response;
+  }
+
+  private consumeOpenRouterErrorEnvelope() {
+    const envelope = this.lastOpenRouterErrorEnvelope;
+    this.lastOpenRouterErrorEnvelope = null;
+    return envelope;
   }
 
   private async requestStructuredOutput(
@@ -253,21 +368,29 @@ export class OpenAICompatibleAuditGateway implements AuditModelGateway {
   ): Promise<GatewayStageResult> {
     const started = Date.now();
     try {
+      const responseFormat =
+        this.settings.outputTransport === "json_schema"
+          ? zodResponseFormat(schema, schemaName)
+          : { type: "json_object" as const };
       const request = {
         model: this.settings.model,
         messages: [
           {
             role: "system" as const,
-            content: systemInstructions.join(" "),
+            content: [
+              ...systemInstructions,
+              ...(this.settings.outputTransport === "json_object" ? ["Return one valid JSON object and no markdown or surrounding prose."] : []),
+            ].join(" "),
           },
           { role: "user" as const, content: JSON.stringify(input) },
         ],
-        response_format: zodResponseFormat(schema, schemaName),
+        response_format: responseFormat,
         ...(this.settings.provider === "openrouter"
           ? { max_tokens: 16_000, provider: { require_parameters: true } }
           : { max_completion_tokens: 16_000 }),
       };
-      const response = await this.client.chat.completions.create(request);
+      const { data: response, response: httpResponse, request_id: requestId } = await this.client.chat.completions.create(request).withResponse();
+      const routerMetadata = safeOpenRouterMetadata(objectRecord(response).openrouter_metadata);
       const choice = response.choices[0];
       if (!choice) throw new AuditServiceError("MODEL_OUTPUT_INCOMPLETE", "The model returned no completion choice.", 502, true);
       if (choice.finish_reason === "length") throw new AuditServiceError("MODEL_OUTPUT_INCOMPLETE", "The model response exceeded its output limit.", 502, true);
@@ -285,12 +408,17 @@ export class OpenAICompatibleAuditGateway implements AuditModelGateway {
         stage,
         promptVersion,
         schemaVersion,
+        outputTransport: this.settings.outputTransport,
         output,
         provider: this.settings.provider,
         endpointHost: this.settings.endpointHost,
         requestedModel: this.settings.model,
         returnedModel: response.model,
-        rawResponse: response,
+        upstreamRequestId: requestId ?? headerValue(httpResponse.headers, "x-request-id"),
+        openRouterRequestId: headerValue(httpResponse.headers, "x-openrouter-request-id"),
+        generationId: headerValue(httpResponse.headers, "x-generation-id"),
+        routerMetadata,
+        rawResponse: responseWithSafeRouterMetadata(response, httpResponse.headers),
         latencyMs: Date.now() - started,
       };
     } catch (error) {
@@ -298,11 +426,12 @@ export class OpenAICompatibleAuditGateway implements AuditModelGateway {
         stage,
         promptVersion,
         schemaVersion,
+        outputTransport: this.settings.outputTransport,
         provider: this.settings.provider,
         endpointHost: this.settings.endpointHost,
         requestedModel: this.settings.model,
         started,
-      });
+      }, this.consumeOpenRouterErrorEnvelope());
     }
   }
 
@@ -362,11 +491,16 @@ export class MockAuditGateway implements AuditModelGateway {
       stage: "candidate-generation",
       promptVersion: CANDIDATE_PROMPT_VERSION,
       schemaVersion: CANDIDATE_SCHEMA_VERSION,
+      outputTransport: "json_schema",
       output,
       provider: "deterministic-mock",
       endpointHost: "local",
       requestedModel: "deterministic-mock",
       returnedModel: "deterministic-mock",
+      upstreamRequestId: null,
+      openRouterRequestId: null,
+      generationId: null,
+      routerMetadata: null,
       rawResponse: { mode: "mock", output },
       latencyMs: 0,
     };
@@ -383,11 +517,16 @@ export class MockAuditGateway implements AuditModelGateway {
       stage: "focused-adjudication",
       promptVersion: ADJUDICATION_PROMPT_VERSION,
       schemaVersion: ADJUDICATION_SCHEMA_VERSION,
+      outputTransport: "json_schema",
       output,
       provider: "deterministic-mock",
       endpointHost: "local",
       requestedModel: "deterministic-mock",
       returnedModel: "deterministic-mock",
+      upstreamRequestId: null,
+      openRouterRequestId: null,
+      generationId: null,
+      routerMetadata: null,
       rawResponse: { mode: "mock", output },
       latencyMs: 0,
     };
@@ -419,6 +558,7 @@ function providerFailureEvidence(diagnostic: ProviderFailureDiagnostic, pack: Wo
   return {
     ...diagnostic,
     sanitizedUpstreamMessage: redactPackMaterialFromMessage(diagnostic.sanitizedUpstreamMessage, pack),
+    sanitizedProviderDetail: redactPackMaterialFromMessage(diagnostic.sanitizedProviderDetail, pack),
   };
 }
 
@@ -441,6 +581,7 @@ async function preserveProviderFailureEvidence(
     provider: diagnostic.provider,
     endpointHost: diagnostic.endpointHost,
     requestedModel: diagnostic.requestedModel,
+    outputTransport: diagnostic.outputTransport,
     providerFailure: providerFailureEvidence(diagnostic, pack),
     stagesNotRun,
     normalizedAudit: null,
@@ -460,6 +601,11 @@ function stageEvidenceBlock(candidate: GatewayStageResult, adjudication: Gateway
         endpointHost: candidate.endpointHost,
         requestedModel: candidate.requestedModel,
         returnedModel: candidate.returnedModel,
+        outputTransport: candidate.outputTransport,
+        upstreamRequestId: candidate.upstreamRequestId,
+        openRouterRequestId: candidate.openRouterRequestId,
+        generationId: candidate.generationId,
+        routerMetadata: candidate.routerMetadata,
       },
       focusedAdjudication: adjudication
         ? {
@@ -467,6 +613,11 @@ function stageEvidenceBlock(candidate: GatewayStageResult, adjudication: Gateway
             endpointHost: adjudication.endpointHost,
             requestedModel: adjudication.requestedModel,
             returnedModel: adjudication.returnedModel,
+            outputTransport: adjudication.outputTransport,
+            upstreamRequestId: adjudication.upstreamRequestId,
+            openRouterRequestId: adjudication.openRouterRequestId,
+            generationId: adjudication.generationId,
+            routerMetadata: adjudication.routerMetadata,
           }
         : null,
     },
@@ -548,6 +699,7 @@ export async function executeLiveAudit(
     endpointHost: candidateStage.endpointHost,
     requestedModel: candidateStage.requestedModel,
     returnedModel: candidateStage.returnedModel,
+    outputTransport: candidateStage.outputTransport,
     candidateInput,
     rawCandidateResponse: candidateStage.rawResponse,
     stageLatencyMs: { candidates: candidateStage.latencyMs, adjudication: null as number | null },
