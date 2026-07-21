@@ -435,7 +435,14 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   backdrop-filter: blur(10px);
 }
 .entry-gate { grid-template-columns: minmax(9rem, 14rem) minmax(20rem, 36rem); gap: clamp(2rem, 7vw, 7rem); padding: 2rem; }
-.entry-tower { width: 13rem; height: 28rem; border: 1px solid rgba(224,193,123,.26); background: linear-gradient(180deg, rgba(35,49,48,.56), rgba(5,9,10,.5)); clip-path: polygon(36% 0, 64% 0, 67% 14%, 80% 24%, 86% 100%, 14% 100%, 20% 24%, 33% 14%); box-shadow: inset 0 0 40px #000, 0 0 0 4rem rgba(184,217,214,.025); }
+/* An arched archive door, not a tower — the previous double-taper clip-path
+   (narrow shoulders flaring to a wide base) read as an ambiguous bottle
+   silhouette rather than anything legible. A rounded-top pillar reads
+   unambiguously as a doorway/archway, which also fits "Open the {world}
+   archive" next to it for any world pack, not just a clocktower-themed one. */
+.entry-tower { position: relative; width: 12rem; height: 26rem; border: 1px solid rgba(224,193,123,.26); border-radius: 6rem 6rem .5rem .5rem; background: linear-gradient(180deg, rgba(35,49,48,.56), rgba(5,9,10,.5)); box-shadow: inset 0 0 40px #000, 0 0 0 4rem rgba(184,217,214,.025); }
+.entry-tower::before { content: ""; position: absolute; top: 2.6rem; left: 50%; width: 1px; height: calc(100% - 4.6rem); background: rgba(224,193,123,.16); transform: translateX(-50%); }
+.entry-tower::after { content: ""; position: absolute; top: 7.5rem; left: 50%; width: .45rem; height: .45rem; border-radius: 50%; background: rgba(224,193,123,.45); box-shadow: 0 0 10px rgba(224,193,123,.5); transform: translate(-50%, -50%); }
 .entry-gate > div:last-child > span { color: var(--brass-light); font-size: .73rem; }
 .entry-gate h2 { margin: .6rem 0 .4rem; color: #f0e7d4; font-family: var(--display); font-size: clamp(4rem, 9vw, 7.5rem); font-weight: 500; letter-spacing: -.04em; line-height: .78; }
 .entry-tagline { color: #eee5d3 !important; font-family: var(--display); font-size: clamp(1.25rem, 2vw, 1.65rem) !important; font-style: italic; }
