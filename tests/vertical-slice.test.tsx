@@ -140,6 +140,42 @@ describe("judge-visible vertical slice", () => {
     expect(localStorage.length).toBe(0);
   });
 
+  it("shows locked hosted runtime disclosure and omits runtime overrides", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ json: async () => response });
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <MisruleApp
+        pack={ashglassPack}
+        source={ashglassSource}
+        runtimeDefaults={{
+          runtimeMode: "locked",
+          provider: "openrouter",
+          apiEndpoint: "https://openrouter.ai/api/v1",
+          model: "google/gemini-2.5-flash",
+          hasServerApiKey: true,
+          allowedEndpointHosts: ["openrouter.ai"],
+        }}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Open the Ashglass archive" }));
+    const settingsButton = screen.getByRole("button", { name: /Model & privacyOpenRouter/ });
+    fireEvent.click(settingsButton);
+    expect(screen.getByRole("dialog", { name: "Reasoning provider is configured for this deployment." })).toBeInTheDocument();
+    expect(screen.getAllByText("google/gemini-2.5-flash").length).toBeGreaterThan(0);
+    expect(screen.queryByLabelText("Model")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    fireEvent.click(screen.getByRole("button", { name: /Set the world in motion/ }));
+    await screen.findByRole("button", { name: /The Dead Captain Returns in the Flesh/ });
+    const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    expect(request).toMatchObject({
+      schemaVersion: "audit-api/v2",
+      source: { kind: "bundled", packId: "ashglass-clocktower-v1" },
+      intent: { mode: "live" },
+    });
+    expect(request).not.toHaveProperty("runtime");
+  });
+
   it("contains a failed audit in a focus-restoring dialog", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       json: async () => ({

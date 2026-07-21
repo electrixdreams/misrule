@@ -1,11 +1,11 @@
 import { auditErrorResponseSchema, auditSuccessResponseSchema, type AuditResponse, type AuditWorldPackSource, type RuntimeSettings } from "@/lib/contracts";
 
-export async function requestAudit(source: AuditWorldPackSource, runtime: RuntimeSettings, signal?: AbortSignal): Promise<AuditResponse> {
+export async function requestAudit(source: AuditWorldPackSource, runtime?: RuntimeSettings, signal?: AbortSignal): Promise<AuditResponse> {
   const clientRequestId = crypto.randomUUID();
   const response = await fetch("/api/audit", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ schemaVersion: "audit-api/v2", clientRequestId, source, intent: { mode: "live" }, runtime }),
+    body: JSON.stringify({ schemaVersion: "audit-api/v2", clientRequestId, source, intent: { mode: "live" }, ...(runtime ? { runtime } : {}) }),
     signal,
   });
   const json: unknown = await response.json();

@@ -6,6 +6,7 @@ import { MAX_WORLD_PACK_BYTES, utf8ByteLength } from "@/lib/world-pack";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 120;
 
 function errorResponse(requestId: string, error: AuditServiceError) {
   const body: AuditErrorResponse = {

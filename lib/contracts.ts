@@ -77,6 +77,7 @@ export const runtimeSettingsSchema = z
 
 export const publicRuntimeDefaultsSchema = z
   .object({
+    runtimeMode: z.enum(["configurable", "locked"]),
     provider: auditProviderSchema,
     apiEndpoint: z.url().trim().max(500),
     model: z.string().trim().min(1).max(200),

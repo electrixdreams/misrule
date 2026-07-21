@@ -16,6 +16,7 @@ export function RuntimeSettingsDialog({ open, settings, defaults, onClose, onSav
   const firstFieldRef = useRef<HTMLSelectElement>(null);
   const saveButtonRef = useRef<HTMLButtonElement>(null);
   const [draft, setDraft] = useState(settings);
+  const locked = defaults.runtimeMode === "locked";
 
   function closeWithoutSaving() {
     setDraft(settings);
@@ -25,12 +26,15 @@ export function RuntimeSettingsDialog({ open, settings, defaults, onClose, onSav
   useEffect(() => {
     if (!open) return;
     const returnTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const focusFrame = requestAnimationFrame(() => firstFieldRef.current?.focus());
+    const focusFrame = requestAnimationFrame(() => {
+      if (locked) saveButtonRef.current?.focus();
+      else firstFieldRef.current?.focus();
+    });
     return () => {
       cancelAnimationFrame(focusFrame);
       returnTarget?.focus();
     };
-  }, [open]);
+  }, [locked, open]);
 
   if (!open) return null;
 
@@ -74,17 +78,43 @@ export function RuntimeSettingsDialog({ open, settings, defaults, onClose, onSav
           }
         }}
       >
-        <span>Runtime settings · session only</span>
-        <h2 id="settings-title">Choose the reasoning provider.</h2>
+        <span>{locked ? "Runtime settings · hosted locked" : "Runtime settings · session only"}</span>
+        <h2 id="settings-title">{locked ? "Reasoning provider is configured for this deployment." : "Choose the reasoning provider."}</h2>
         <p id="settings-description">
-          These values apply to audits from this browser tab. The API key is held only in memory, sent to Misrule&apos;s server for the selected request, and never stored in browser storage.
+          {locked
+            ? "This hosted deployment uses only its server-configured provider and model. Audit input is sent to Misrule's server and then to the configured external provider for the selected request."
+            : "These values apply to audits from this browser tab. The API key is held only in memory, sent to Misrule's server for the selected request, and never stored in browser storage."}
         </p>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            onSave({ ...draft, apiKey: draft.apiKey?.trim() || undefined });
-          }}
-        >
+        {locked ? (
+          <div className="settings-readonly">
+            <dl>
+              <div>
+                <dt>Provider</dt>
+                <dd>{defaults.provider === "openrouter" ? "OpenRouter" : "OpenAI-compatible"}</dd>
+              </div>
+              <div>
+                <dt>Model</dt>
+                <dd>{defaults.model}</dd>
+              </div>
+              <div>
+                <dt>Endpoint</dt>
+                <dd>{defaults.apiEndpoint}</dd>
+              </div>
+            </dl>
+            <aside>
+              Browser requests cannot change this provider or model. Server secrets stay server-side and are not exposed in page configuration, browser storage, public responses, or logs.
+            </aside>
+            <div className="settings-actions">
+              <button ref={saveButtonRef} type="button" onClick={onClose}>Close</button>
+            </div>
+          </div>
+        ) : (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              onSave({ ...draft, apiKey: draft.apiKey?.trim() || undefined });
+            }}
+          >
           <label>
             <span>Provider</span>
             <select
@@ -151,7 +181,8 @@ export function RuntimeSettingsDialog({ open, settings, defaults, onClose, onSav
             <button type="button" onClick={closeWithoutSaving}>Cancel</button>
             <button ref={saveButtonRef} type="submit">Use these settings</button>
           </div>
-        </form>
+          </form>
+        )}
       </section>
     </div>
   );

@@ -34,9 +34,10 @@ export function MisruleApp({
   pack,
   source,
   runtimeDefaults = {
+    runtimeMode: "configurable",
     provider: "openrouter",
     apiEndpoint: "https://openrouter.ai/api/v1",
-    model: "openai/gpt-oss-120b:free",
+    model: "google/gemini-2.5-flash",
     hasServerApiKey: false,
     allowedEndpointHosts: ["openrouter.ai", "api.openai.com"],
   },
@@ -65,6 +66,8 @@ export function MisruleApp({
   const entryButtonRef = useRef<HTMLButtonElement | null>(null);
   const result = selectAuditResult(state);
   const finding = selectFinding(state);
+  const lockedRuntime = runtimeDefaults.runtimeMode === "locked";
+  const displayedRuntime = lockedRuntime ? runtimeDefaults : runtimeSettings;
   const sourceKey = source.kind === "bundled" ? `bundled:${source.packId}` : `inline:${source.pack.packId}:${source.pack.packVersion}`;
   const sourceDisclosure = source.kind === "bundled"
     ? { label: "Bundled sample", shortLabel: "Bundled archive", entry: "bundled synthetic World Pack" }
@@ -89,7 +92,7 @@ export function MisruleApp({
       myGeneration === requestGenerationRef.current && requestSourceKey === activeSourceKeyRef.current;
     dispatch({ type: "AUDIT_REQUESTED" });
     try {
-      const response = await requestAudit(source, runtimeSettings, controller.signal);
+      const response = await requestAudit(source, lockedRuntime ? undefined : runtimeSettings, controller.signal);
       if (!isCurrentRequest()) return;
       if (response.ok) {
         if (response.audit.packId !== requestedPackId || response.audit.packVersion !== requestedPackVersion) {
@@ -109,7 +112,7 @@ export function MisruleApp({
         error: { code: "UPSTREAM_UNAVAILABLE", message: "The live audit service could not be reached.", retryable: true, fallbackOffer: null },
       });
     }
-  }, [pack.packId, pack.packVersion, runtimeSettings, source, sourceKey]);
+  }, [lockedRuntime, pack.packId, pack.packVersion, runtimeSettings, source, sourceKey]);
 
   useEffect(() => () => {
     requestGenerationRef.current++;
@@ -194,7 +197,7 @@ export function MisruleApp({
 
       <button className="settings-trigger" type="button" onClick={() => setSettingsOpen(true)} aria-haspopup="dialog">
         <span>Model &amp; privacy</span>
-        <small>{runtimeSettings.provider === "openrouter" ? "OpenRouter" : "Compatible API"} · {runtimeSettings.model}</small>
+        <small>{displayedRuntime.provider === "openrouter" ? "OpenRouter" : "Compatible API"} · {displayedRuntime.model}</small>
       </button>
 
       {onReturnToLibrary ? (

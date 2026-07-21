@@ -426,6 +426,11 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
 .settings-dialog small { color: #82918c; font-size: .6rem; line-height: 1.4; }
 .settings-dialog aside { grid-column: 1 / -1; padding: .7rem .8rem; border-left: .25rem solid var(--brass); color: #a9b5af; background: rgba(224,193,123,.06); font-family: var(--text); font-size: .84rem; line-height: 1.45; overflow-wrap: anywhere; }
 .settings-dialog aside strong { color: #ddd2bd; font-weight: 500; }
+.settings-readonly { display: grid; gap: 1rem; }
+.settings-readonly dl { display: grid; gap: .7rem; margin: 0; }
+.settings-readonly dl > div { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: .8rem; align-items: baseline; padding-bottom: .7rem; border-bottom: 1px solid rgba(184,217,214,.14); }
+.settings-readonly dt { color: #e6dcc8; font-size: .71rem; font-weight: 650; }
+.settings-readonly dd { margin: 0; color: #d7e4df; overflow-wrap: anywhere; }
 .settings-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: .65rem; margin-top: .25rem; }
 .settings-actions button { padding: .66rem .9rem; border: 1px solid rgba(184,217,214,.4); color: #e6e1d7; background: #172020; cursor: pointer; }
 .settings-actions button:last-child { border-color: var(--brass-light); background: linear-gradient(180deg, #594124, #151b1b); }

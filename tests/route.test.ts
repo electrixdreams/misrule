@@ -13,6 +13,7 @@ describe("POST /api/audit", () => {
     MISRULE_ALLOWED_PROVIDER_HOSTS: process.env.MISRULE_ALLOWED_PROVIDER_HOSTS,
     OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
     MISRULE_EVIDENCE_DIR: process.env.MISRULE_EVIDENCE_DIR,
+    MISRULE_RUNTIME_MODE: process.env.MISRULE_RUNTIME_MODE,
   };
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -115,5 +116,37 @@ describe("POST /api/audit", () => {
     expect(JSON.stringify(body)).not.toContain("upstreamStatus");
     expect(JSON.stringify(body)).not.toContain("req-public");
     expect(JSON.stringify(body)).not.toContain("server-secret");
+  });
+
+  it("rejects forged locked-mode runtime overrides before a provider call", async () => {
+    process.env.MISRULE_AUDIT_MODE = "live";
+    process.env.MISRULE_RUNTIME_MODE = "locked";
+    process.env.MISRULE_PROVIDER = "openrouter";
+    process.env.MISRULE_API_ENDPOINT = "https://openrouter.ai/api/v1";
+    process.env.MISRULE_MODEL = "google/gemini-2.5-flash";
+    process.env.MISRULE_OUTPUT_TRANSPORT = "json_object";
+    process.env.MISRULE_ALLOWED_PROVIDER_HOSTS = "openrouter.ai";
+    process.env.OPENROUTER_API_KEY = "server-secret";
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const response = await POST(new Request("http://localhost/api/audit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schemaVersion: "audit-api/v2",
+        clientRequestId: "forged-runtime",
+        source: { kind: "bundled", packId: "ashglass-clocktower-v1" },
+        intent: { mode: "live" },
+        runtime: {
+          provider: "openai-compatible",
+          apiEndpoint: "https://api.openai.com/v1",
+          model: "forged/model",
+          apiKey: "forged-key",
+        },
+      }),
+    }));
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ ok: false, requestId: "forged-runtime", error: { code: "INVALID_REQUEST" } });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

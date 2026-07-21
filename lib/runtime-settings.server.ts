@@ -5,7 +5,7 @@ import type { AuditProvider, AuditRequest, PublicRuntimeDefaults } from "@/lib/c
 import { AuditServiceError } from "@/lib/audit-errors";
 
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1";
-const OPENROUTER_MODEL = "openai/gpt-oss-20b:free";
+const OPENROUTER_MODEL = "google/gemini-2.5-flash";
 
 export type ResolvedRuntimeSettings = {
   provider: AuditProvider;
@@ -18,6 +18,14 @@ export type ResolvedRuntimeSettings = {
 };
 
 export type OutputTransport = "json_schema" | "json_object";
+export type RuntimeMode = "configurable" | "locked";
+
+export function runtimeModeFromEnvironment(): RuntimeMode {
+  const configured = process.env.MISRULE_RUNTIME_MODE?.trim();
+  if (!configured) return "configurable";
+  if (configured === "configurable" || configured === "locked") return configured;
+  throw new AuditServiceError("SERVICE_MISCONFIGURED", "MISRULE_RUNTIME_MODE must be configurable or locked.", 500, false);
+}
 
 function providerFromEnvironment(): AuditProvider {
   return process.env.MISRULE_PROVIDER === "openai-compatible" ? "openai-compatible" : "openrouter";
@@ -40,7 +48,7 @@ function serverApiKey(provider: AuditProvider) {
 
 export function outputTransportFromEnvironment(): OutputTransport {
   const configured = process.env.MISRULE_OUTPUT_TRANSPORT?.trim();
-  if (!configured) return "json_schema";
+  if (!configured) return "json_object";
   if (configured === "json_schema" || configured === "json_object") return configured;
   throw new AuditServiceError("SERVICE_MISCONFIGURED", "MISRULE_OUTPUT_TRANSPORT must be json_schema or json_object.", 500, false);
 }
@@ -83,6 +91,7 @@ export function getPublicRuntimeDefaults(): PublicRuntimeDefaults {
   const provider = providerFromEnvironment();
   const endpoint = validateEndpoint(endpointFromEnvironment(provider));
   return {
+    runtimeMode: runtimeModeFromEnvironment(),
     provider,
     apiEndpoint: endpoint.apiEndpoint,
     model: modelFromEnvironment(provider),
@@ -92,9 +101,13 @@ export function getPublicRuntimeDefaults(): PublicRuntimeDefaults {
 }
 
 export function resolveRuntimeSettings(request: AuditRequest): ResolvedRuntimeSettings {
-  const provider = request.runtime?.provider ?? providerFromEnvironment();
-  const endpoint = validateEndpoint(request.runtime?.apiEndpoint ?? endpointFromEnvironment(provider));
-  const apiKey = request.runtime?.apiKey?.trim() || serverApiKey(provider);
+  const runtimeMode = runtimeModeFromEnvironment();
+  if (runtimeMode === "locked" && request.runtime) {
+    throw new AuditServiceError("INVALID_REQUEST", "This deployment does not accept browser runtime overrides.", 400, false);
+  }
+  const provider = runtimeMode === "locked" ? providerFromEnvironment() : request.runtime?.provider ?? providerFromEnvironment();
+  const endpoint = validateEndpoint(runtimeMode === "locked" ? endpointFromEnvironment(provider) : request.runtime?.apiEndpoint ?? endpointFromEnvironment(provider));
+  const apiKey = runtimeMode === "locked" ? serverApiKey(provider) : request.runtime?.apiKey?.trim() || serverApiKey(provider);
   if (!apiKey) {
     throw new AuditServiceError(
       "SERVICE_MISCONFIGURED",
@@ -106,9 +119,9 @@ export function resolveRuntimeSettings(request: AuditRequest): ResolvedRuntimeSe
   return {
     provider,
     ...endpoint,
-    model: request.runtime?.model.trim() || modelFromEnvironment(provider),
+    model: runtimeMode === "locked" ? modelFromEnvironment(provider) : request.runtime?.model.trim() || modelFromEnvironment(provider),
     apiKey,
-    credentialSource: request.runtime?.apiKey ? "request" : "server",
+    credentialSource: runtimeMode === "locked" || !request.runtime?.apiKey ? "server" : "request",
     outputTransport: outputTransportFromEnvironment(),
   };
 }
