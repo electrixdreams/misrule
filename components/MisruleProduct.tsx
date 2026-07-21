@@ -43,6 +43,12 @@ export function MisruleProduct({
   auditMode?: "live" | "mock";
 }) {
   const [view, setView] = useState<ProductView>({ kind: "library" });
+  // Tracks which packs have already had their entry gate dismissed this
+  // session, so re-opening a pack you've already entered skips the threshold
+  // modal. MisruleApp remounts fresh every time a pack is (re)opened from the
+  // library, so this can't live in MisruleApp's own state — it has to persist
+  // in this parent, which never unmounts across view switches.
+  const [enteredPackKeys, setEnteredPackKeys] = useState<Set<string>>(() => new Set());
 
   if (view.kind === "clockwork") {
     let pack: WorldPack | null = null;
@@ -87,12 +93,15 @@ export function MisruleProduct({
     }
     const mountedPack = pack;
     const auditSource = source;
+    const entryKey = `${view.source.kind}:${view.source.packId}`;
     return (
       <MisruleApp
         pack={mountedPack}
         source={auditSource}
         runtimeDefaults={runtimeDefaults}
         auditMode={auditMode}
+        hasEnteredBefore={enteredPackKeys.has(entryKey)}
+        onEntryDismissed={() => setEnteredPackKeys((prev) => (prev.has(entryKey) ? prev : new Set(prev).add(entryKey)))}
         onReturnToLibrary={() => setView({ kind: "library" })}
         onEdit={auditSource.kind === "inline" ? () => setView({ kind: "editor", mode: "edit", packId: mountedPack.packId }) : undefined}
       />

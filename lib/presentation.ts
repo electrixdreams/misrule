@@ -1,5 +1,5 @@
 import type { FindingDto } from "@/lib/contracts";
-import { selectHandAngle, selectTopology, type AuditState, type StationId } from "@/lib/misrule-state";
+import { selectTopology, type AuditState, type StationId } from "@/lib/misrule-state";
 
 export function buildInstrumentViewModel(station: StationId, audit: AuditState, finding: FindingDto | null, quieted: boolean) {
   const auditStatus: "dormant" | "running" | "complete" | "blocked" =
@@ -11,7 +11,6 @@ export function buildInstrumentViewModel(station: StationId, audit: AuditState, 
           ? "blocked"
           : "dormant";
   return {
-    handAngle: selectHandAngle(station),
     auditStatus,
     selectedPath: selectTopology(finding),
     quieted,

@@ -6,7 +6,6 @@ type Props = {
   pack: WorldPack;
   sourceLabel: string;
   selectedStation: StationId;
-  handAngle: number;
   auditStatus: "dormant" | "running" | "complete" | "blocked";
   topology: "none" | "closed" | "open";
   quieted: boolean;
@@ -15,6 +14,26 @@ type Props = {
   onStation: (station: StationId) => void;
   onAudit: () => void;
 };
+
+// Coordinate space for the route board's SVG and the station buttons laid
+// over it, in a fixed 3:4 unit box (matches .route-board's aspect-ratio) —
+// the single source of truth for both, so the clickable waypoint and its
+// drawn pin can never drift apart.
+const BOX_W = 300;
+const BOX_H = 400;
+
+const ROUTE_WAYPOINTS: Record<"world" | "rules" | "record" | "findings", { x: number; y: number }> = {
+  world: { x: 150, y: 55 },
+  rules: { x: 225, y: 160 },
+  record: { x: 85, y: 250 },
+  findings: { x: 215, y: 340 },
+};
+
+const ROUTE_PATH = "M150,55 C210,80 225,110 225,160 C225,205 110,215 85,250 C60,285 190,300 215,340";
+
+function pct(value: number, dimension: number) {
+  return `${((value / dimension) * 100).toFixed(2)}%`;
+}
 
 export function ClockworkInstrument(props: Props) {
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -28,73 +47,69 @@ export function ClockworkInstrument(props: Props) {
     buttonRefs.current[next]?.focus();
   }
 
+  const currentStation = stations.find((station) => station.id === props.selectedStation)!;
+
   return (
     <section className="instrument-stage" data-quieted={props.quieted || undefined} aria-label="Clockwork archive navigation">
       <div className="instrument" data-audit={props.auditStatus} data-topology={props.topology}>
-        <svg className="instrument-svg" viewBox="0 0 700 700" role="img" aria-labelledby="clockwork-title clockwork-description">
-          <title id="clockwork-title">{props.pack.title} as Misrule&apos;s literary reasoning instrument</title>
-          <desc id="clockwork-description">Three rings show world navigation, audit state, and selected finding topology for the active {props.sourceLabel.toLowerCase()}. One brass hand aligns to the selected station.</desc>
-          <defs>
-            <radialGradient id="misrule-glow"><stop offset="0" stopColor="#b8d9d6" stopOpacity=".15" /><stop offset="1" stopColor="#070a0b" stopOpacity="0" /></radialGradient>
-            <linearGradient id="misrule-brass" x1="0" x2="1" y1="0" y2="1"><stop stopColor="#ead08c" /><stop offset=".45" stopColor="#6f4d2d" /><stop offset="1" stopColor="#c89550" /></linearGradient>
-          </defs>
-          <circle cx="350" cy="350" r="328" fill="url(#misrule-glow)" />
-          <g className="ring ring--navigation" fill="none">
-            <circle cx="350" cy="350" r="302" stroke="url(#misrule-brass)" strokeWidth="4" />
-            {[[350,48],[63,257],[637,257],[117,540],[583,540]].map(([cx,cy], index) => <circle key={index} cx={cx} cy={cy} r="7" fill="#b98b4a" stroke="#ead08c" />)}
-          </g>
-          <g className="ring ring--audit" fill="none">
-            <circle cx="350" cy="350" r="254" stroke="#344746" strokeWidth="12" />
-            <path className="audit-arc" d="M350 96 A254 254 0 1 1 169 171" stroke="#b8d9d6" strokeWidth="12" strokeLinecap="round" />
-          </g>
-          <g className="ring ring--path" fill="none">
-            <circle cx="350" cy="350" r="202" stroke="#805d35" strokeWidth="2" />
-            <path className="fracture-route" d="M197 375 C235 291 291 239 350 235 C425 230 489 289 503 374 C481 445 425 488 350 492 C282 494 221 451 197 375 Z" stroke="#ef7964" strokeWidth="5" strokeLinecap="round" />
-            <path className="open-route" d="M205 397 C245 307 289 271 332 261 M495 397 C455 307 411 271 368 261" stroke="#d4c6ff" strokeWidth="4" strokeLinecap="round" />
-            <g className="missing-pin"><circle cx="350" cy="253" r="29" fill="#0c1213" stroke="#d4c6ff" strokeWidth="3" /><circle cx="350" cy="253" r="12" fill="none" stroke="#d4c6ff" strokeWidth="2" strokeDasharray="4 5" /></g>
-          </g>
-          <g className="tower" aria-hidden="true">
-            <path d="M244 550H456L442 248L403 204L391 139H309L297 204L258 248Z" fill="#101718" stroke="#c29351" strokeWidth="4" />
-            <path d="M311 139L350 82L389 139Z" fill="#11191a" stroke="#c29351" strokeWidth="4" />
-            <path d="M350 82V50M258 248H442M244 550H456" stroke="#e0bc72" strokeWidth="3" opacity=".68" />
-            <circle cx="350" cy="205" r="56" fill="#111819" stroke="#dfbf76" strokeWidth="4" />
-            <circle cx="350" cy="205" r="42" fill="none" stroke="#a8d1cd" strokeWidth="2" opacity=".55" />
-            <path d="M350 205V174M350 205L377 220" stroke="#f0cf82" strokeWidth="4" strokeLinecap="round" />
-            <circle cx="350" cy="205" r="6" fill="#e8c77b" />
-            <rect className="tower-window" x="288" y="286" width="45" height="70" rx="22" />
-            <rect className="tower-window" x="367" y="286" width="45" height="70" rx="22" />
-            <rect className="tower-window" x="288" y="382" width="45" height="70" rx="22" />
-            <rect className="tower-window" x="367" y="382" width="45" height="70" rx="22" />
-            <path d="M325 550V480C325 451 375 451 375 480V550Z" fill="#071011" stroke="#937043" strokeWidth="3" />
-          </g>
-          <g className="brass-hand" style={{ transform: `rotate(${props.handAngle}deg)` }} stroke="#f0cf82" strokeWidth="4" fill="none">
-            <path d="M350 350L350 72" /><circle cx="350" cy="350" r="11" fill="#111718" stroke="#f0cf82" strokeWidth="3" /><path d="M350 60l-9 22h18z" fill="#f0cf82" stroke="none" />
-          </g>
-        </svg>
-
-        <nav className="station-nav" aria-label="Archive stations" onKeyDown={onStationKeyDown}>
-          {stations.map((station, index) => (
-            <button
-              key={station.id}
-              className={`station station--${station.id}`}
-              type="button"
-              aria-label={`${station.primary} ${station.secondary}`}
-              aria-current={props.selectedStation === station.id ? "page" : undefined}
-              tabIndex={props.selectedStation === station.id ? 0 : -1}
-              ref={(element) => { buttonRefs.current[index] = element; }}
-              onClick={() => props.onStation(station.id)}
-            >
-              <i aria-hidden="true" /><span>{station.primary}</span><small>{station.secondary}</small>
-            </button>
-          ))}
-        </nav>
-
-        <div className="instrument-title">
+        <header className="instrument-heading">
           <small>Inspectable fictional-world rule audit</small>
           <h1>Misrule</h1>
           <p>Find where the world turns against itself.</p>
-          <span>{props.pack.world.title} · {stations.find((station) => station.id === props.selectedStation)!.primary} · {stations.find((station) => station.id === props.selectedStation)!.secondary}</span>
+        </header>
+
+        <div className="route-board">
+          <svg
+            className="route-svg"
+            viewBox={`0 0 ${BOX_W} ${BOX_H}`}
+            role="img"
+            aria-labelledby="clockwork-title clockwork-description"
+          >
+            <title id="clockwork-title">{props.pack.title} as Misrule&apos;s literary reasoning instrument</title>
+            <desc id="clockwork-description">
+              A route connects the world, rules, record, and findings stations of the active {props.sourceLabel.toLowerCase()}.
+              The route glows while an audit is under way, and the current station is lit.
+            </desc>
+
+            <path className="route-line" d={ROUTE_PATH} fill="none" pathLength={300} />
+            <path className="route-line--glow" d={ROUTE_PATH} fill="none" pathLength={300} />
+
+            {props.topology !== "none" ? (
+              <g
+                className={`topology-sigil topology-sigil--${props.topology}`}
+                transform={`translate(${ROUTE_WAYPOINTS.findings.x} ${ROUTE_WAYPOINTS.findings.y})`}
+                aria-hidden="true"
+              >
+                <circle r="22" />
+                {props.topology === "open" ? <circle className="topology-missing-mark" r="5" cx="16" cy="-16" /> : null}
+              </g>
+            ) : null}
+          </svg>
+
+          <nav className="station-nav" aria-label="Archive stations" onKeyDown={onStationKeyDown}>
+            {stations.map((station, index) => {
+              const isColophon = station.id === "method";
+              const waypoint = isColophon ? null : ROUTE_WAYPOINTS[station.id as keyof typeof ROUTE_WAYPOINTS];
+              return (
+                <button
+                  key={station.id}
+                  className={`station station--${station.id}${isColophon ? " station--colophon" : ""}`}
+                  type="button"
+                  style={waypoint ? { top: pct(waypoint.y, BOX_H), left: pct(waypoint.x, BOX_W) } : undefined}
+                  aria-label={`${station.primary} ${station.secondary}`}
+                  aria-current={props.selectedStation === station.id ? "page" : undefined}
+                  tabIndex={props.selectedStation === station.id ? 0 : -1}
+                  ref={(element) => { buttonRefs.current[index] = element; }}
+                  onClick={() => props.onStation(station.id)}
+                >
+                  <i aria-hidden="true" /><span>{station.primary}</span><small>{station.secondary}</small>
+                </button>
+              );
+            })}
+          </nav>
         </div>
+
+        <p className="instrument-caption">{props.pack.world.title} · {currentStation.primary} · {currentStation.secondary}</p>
 
         <button className="wind-key" type="button" onClick={props.onAudit} disabled={props.running}>
           <span>{props.running ? "Auditing paths" : "Set the world in motion"}</span>

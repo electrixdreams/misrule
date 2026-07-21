@@ -7,10 +7,9 @@ import { buildInstrumentViewModel } from "@/lib/presentation";
 import { escapeAction, initialMisruleState, misruleReducer, selectFinding, stations } from "@/lib/misrule-state";
 
 describe("Misrule reducer and presentation", () => {
-  it("maps exactly five stations to stable alignments", () => {
+  it("defines exactly five stations in a stable order", () => {
     expect(stations).toHaveLength(5);
     expect(stations.map((station) => station.id)).toEqual(["world", "rules", "record", "findings", "method"]);
-    expect(new Set(stations.map((station) => station.angle)).size).toBe(5);
   });
 
   it("clears stale source and finding selection on a new audit", () => {

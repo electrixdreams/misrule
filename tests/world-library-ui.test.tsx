@@ -55,11 +55,16 @@ describe("World Library surface", () => {
     saveLocalWorldPack({ ...portablePack, packId: "alpha", title: "Alpha World" }, { now: () => "2026-07-20T01:00:00.000Z" });
     saveLocalWorldPack({ ...portablePack, packId: "beta", title: "Beta World" }, { now: () => "2026-07-20T02:00:00.000Z" });
     render(<WorldLibrary bundledPacks={[ashglassPack]} onOpenBundled={vi.fn()} />);
-    expect(screen.getByText("Alpha World")).toBeInTheDocument();
-    expect(screen.getByText("Beta World")).toBeInTheDocument();
-    expect(screen.getByText("Updated 2026-07-20T01:00:00.000Z")).toBeInTheDocument();
-    expect(screen.getByText("Updated 2026-07-20T02:00:00.000Z")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Alpha World/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Beta World/ })).toBeInTheDocument();
     expect(screen.queryByText(/No World Packs saved yet/)).not.toBeInTheDocument();
+
+    // Each pack's detail — including its updated timestamp — is revealed by
+    // selecting its spine, not shown for every pack simultaneously.
+    fireEvent.click(screen.getByRole("button", { name: /Alpha World/ }));
+    expect(screen.getByText("Updated 2026-07-20T01:00:00.000Z")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Beta World/ }));
+    expect(screen.getByText("Updated 2026-07-20T02:00:00.000Z")).toBeInTheDocument();
   });
 
   it("opens the bundled sample and returns to the World Library through the product shell", async () => {
@@ -87,6 +92,7 @@ describe("World Pack import", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Save to World Library" }));
     await waitFor(() => expect(loadWorldLibrary().entries).toHaveLength(1));
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(portablePack.title) }));
     expect(screen.getByText("ID portable-world-v1")).toBeInTheDocument();
   });
 
@@ -183,6 +189,7 @@ describe("delete and reset", () => {
     saveLocalWorldPack({ ...portablePack, packId: "del-1", title: "To Delete" }, { now: () => "2026-07-20T01:00:00.000Z" });
     render(<WorldLibrary bundledPacks={[ashglassPack]} onOpenBundled={vi.fn()} />);
 
+    fireEvent.click(screen.getByRole("button", { name: /To Delete/ }));
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
     const confirmDialog = await screen.findByRole("dialog", { name: "Delete local World Pack" });
     expect(within(confirmDialog).getByText(/Delete “To Delete”/)).toBeInTheDocument();

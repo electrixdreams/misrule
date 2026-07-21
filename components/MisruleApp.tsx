@@ -42,17 +42,25 @@ export function MisruleApp({
     allowedEndpointHosts: ["openrouter.ai", "api.openai.com"],
   },
   auditMode = "live",
+  hasEnteredBefore = false,
   onReturnToLibrary,
   onEdit,
+  onEntryDismissed,
 }: {
   pack: WorldPack;
   source: AuditWorldPackSource;
   runtimeDefaults?: PublicRuntimeDefaults;
   auditMode?: "live" | "mock";
+  hasEnteredBefore?: boolean;
   onReturnToLibrary?: () => void;
   onEdit?: () => void;
+  onEntryDismissed?: () => void;
 }) {
-  const [state, dispatch] = useReducer(misruleReducer, initialMisruleState);
+  const [state, dispatch] = useReducer(
+    misruleReducer,
+    hasEnteredBefore,
+    (skipEntryGate) => ({ ...initialMisruleState, entryOpen: !skipEntryGate }),
+  );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [runtimeSettings, setRuntimeSettings] = useState<RuntimeSettings>({
     provider: runtimeDefaults.provider,
@@ -128,8 +136,8 @@ export function MisruleApp({
     activeSourceKeyRef.current = sourceKey;
     abortRef.current?.abort();
     abortRef.current = null;
-    dispatch({ type: "ACTIVE_WORLD_CHANGED", title: pack.title });
-  }, [pack.title, sourceKey]);
+    dispatch({ type: "ACTIVE_WORLD_CHANGED", title: pack.title, skipEntryGate: hasEnteredBefore });
+  }, [pack.title, sourceKey, hasEnteredBefore]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -186,30 +194,32 @@ export function MisruleApp({
     <main className="misrule-shell" data-quieted={instrument.quieted || undefined}>
       <a className="skip-link" href="#leaf-content">Skip to archive leaf</a>
 
-      <button className="world-seal" type="button" onClick={() => dispatch({ type: "DRAWER_OPENED" })} aria-haspopup="dialog" aria-label={`Open active world controls for ${pack.title}`}>
-        <i aria-hidden="true" />
-        <span><strong>Misrule</strong><small>{pack.title}<br />{sourceDisclosure.shortLabel}</small></span>
-      </button>
+      <header className="instrument-fascia">
+        {onReturnToLibrary ? (
+          <button className="fascia-return" type="button" onClick={onReturnToLibrary} aria-label="Return to the World Library">
+            <i aria-hidden="true" />
+            <span>World Library</span>
+          </button>
+        ) : null}
 
-      <div className="status-plaque" data-state={instrument.auditStatus} role="status">
-        <i aria-hidden="true" /><span><strong>{status[0]}</strong><small>{status[1]}</small></span>
-      </div>
-
-      <button className="settings-trigger" type="button" onClick={() => setSettingsOpen(true)} aria-haspopup="dialog">
-        <span>Model &amp; privacy</span>
-        <small>{displayedRuntime.provider === "openrouter" ? "OpenRouter" : "Compatible API"} · {displayedRuntime.model}</small>
-      </button>
-
-      {onReturnToLibrary ? (
-        <button className="library-return" type="button" onClick={onReturnToLibrary} aria-label="Return to the World Library">
-          <span>World Library</span>
+        <button className="fascia-seal" type="button" onClick={() => dispatch({ type: "DRAWER_OPENED" })} aria-haspopup="dialog" aria-label={`Open active world controls for ${pack.title}`}>
+          <i aria-hidden="true" />
+          <span><strong>Misrule</strong><small>{pack.title}<br />{sourceDisclosure.shortLabel}</small></span>
         </button>
-      ) : null}
+
+        <div className="fascia-status" data-state={instrument.auditStatus} role="status">
+          <i aria-hidden="true" /><span><strong>{status[0]}</strong><small>{status[1]}</small></span>
+        </div>
+
+        <button className="fascia-settings" type="button" onClick={() => setSettingsOpen(true)} aria-haspopup="dialog">
+          <span>Model &amp; privacy</span>
+          <small>{displayedRuntime.provider === "openrouter" ? "OpenRouter" : "Compatible API"} · {displayedRuntime.model}</small>
+        </button>
+      </header>
 
       <div className="workspace">
         <ClockworkInstrument
           selectedStation={state.selectedStation}
-          handAngle={instrument.handAngle}
           auditStatus={instrument.auditStatus}
           topology={instrument.selectedPath.topology}
           quieted={instrument.quieted}
@@ -254,7 +264,17 @@ export function MisruleApp({
             <h2 id="entry-title">Misrule</h2>
             <p className="entry-tagline">Find where the world turns against itself.</p>
             <p>Enter a literary reasoning instrument: world rules, narrative evidence, closed contradictions, and the facts the record still withholds.</p>
-            <button ref={entryButtonRef} autoFocus type="button" onClick={() => dispatch({ type: "ENTRY_DISMISSED" })}>Open the {pack.world.title} archive</button>
+            <button
+              ref={entryButtonRef}
+              autoFocus
+              type="button"
+              onClick={() => {
+                dispatch({ type: "ENTRY_DISMISSED" });
+                onEntryDismissed?.();
+              }}
+            >
+              Open the {pack.world.title} archive
+            </button>
             <small>Inspectable fictional-world rule audit</small>
           </div>
         </section>

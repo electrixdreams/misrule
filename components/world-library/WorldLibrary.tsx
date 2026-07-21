@@ -30,9 +30,9 @@ function LibraryErrorState({
       <p className="library-error-title">The World Library could not be loaded.</p>
       <p>{error.message}</p>
       {canReset ? (
-        <button type="button" onClick={onReset}>Reset World Library</button>
+        <button type="button" className="btn btn-danger" onClick={onReset}>Reset World Library</button>
       ) : (
-        <button type="button" onClick={onRetry}>Retry</button>
+        <button type="button" className="btn" onClick={onRetry}>Retry</button>
       )}
     </div>
   );
@@ -59,6 +59,11 @@ export function WorldLibrary({
   const [exportError, setExportError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Local-shelf selection only. Nothing is selected by default — the bundled
+  // sample is always shown in full to its own left-hand card instead of
+  // competing for this state.
+  const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
+
   const reload = useCallback(() => {
     try {
       const envelope = loadWorldLibrary();
@@ -83,6 +88,17 @@ export function WorldLibrary({
     reload();
   }, [reload]);
 
+  useEffect(() => {
+    if (!selectedPackId) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setSelectedPackId(null);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [selectedPackId]);
+
+  const selectedEntry = entries.find((entry) => entry.pack.packId === selectedPackId) ?? null;
+
   const handleExport = useCallback((pack: WorldPack) => {
     try {
       downloadWorldPack(pack);
@@ -102,20 +118,23 @@ export function WorldLibrary({
       removed = false;
     }
     setDeleteTarget(null);
-    if (removed) reload();
-    else setDeleteError(`Could not remove ${title}.`);
+    if (removed) {
+      reload();
+      setSelectedPackId(null);
+    } else {
+      setDeleteError(`Could not remove ${title}.`);
+    }
   }, [deleteTarget, reload]);
 
   const handleResetConfirm = useCallback(() => {
     try {
       resetLocalWorldLibrary();
     } catch {
-      setResetOpen(false);
-      reload();
-      return;
+      // fall through to the same reload below
     }
     setResetOpen(false);
     reload();
+    setSelectedPackId(null);
   }, [reload]);
 
   return (
@@ -128,65 +147,99 @@ export function WorldLibrary({
         </p>
       </header>
 
-      <section aria-labelledby="bundled-heading" className="library-section">
-        <h2 id="bundled-heading">Bundled sample</h2>
-        {bundledPacks.map((pack) => (
-          <article key={pack.packId} className="pack-card pack-card--bundled">
-            <div className="pack-card-head">
-              <h3>{pack.title}</h3>
-              <p className="pack-preview-id">ID {pack.packId}</p>
-            </div>
-            <p className="pack-disclosure">{pack.disclosure ?? "Synthetic demo — not a real audit result."}</p>
-            <WorldPackSummary pack={pack} />
-            <p className="pack-desc">{pack.description}</p>
-            <div className="pack-actions">
-              <button type="button" onClick={() => onOpenBundled(pack.packId)}>Open sample</button>
-              <button type="button" onClick={() => handleExport(pack)}>Export World Pack</button>
-            </div>
-          </article>
-        ))}
-      </section>
+      {libraryError ? (
+        <LibraryErrorState error={libraryError} onReset={() => setResetOpen(true)} onRetry={reload} />
+      ) : (
+        <div className="library-main">
+          <div className="bundled-column">
+            {bundledPacks.map((pack) => (
+              <article key={pack.packId} className="info-panel bundled-card">
+                <p className="info-panel-kind">Bundled sample</p>
+                <h2>{pack.title}</h2>
+                <p className="info-panel-sub">{pack.disclosure ?? "Synthetic demo — not a real audit result."}</p>
+                <WorldPackSummary pack={pack} />
+                <p className="info-panel-desc">{pack.description}</p>
+                <p className="info-panel-id">ID {pack.packId}</p>
+                <div className="info-panel-actions">
+                  <button type="button" className="btn btn-primary" onClick={() => onOpenBundled(pack.packId)}>
+                    Open sample
+                  </button>
+                  <button type="button" className="btn" onClick={() => handleExport(pack)}>
+                    Export World Pack
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
 
-      <section aria-labelledby="local-heading" className="library-section">
-        <div className="library-section-head">
-          <h2 id="local-heading">Your local World Packs</h2>
-          <div className="library-section-actions">
-            <button type="button" onClick={onCreatePack}>Create World Pack</button>
-            <button type="button" onClick={() => setImportOpen(true)}>Import World Pack</button>
+          <div className="shelf-column">
+            <div className="shelf-toolbar">
+              <p className="shelf-label">Your world packs</p>
+              <button type="button" className="btn" onClick={() => setImportOpen(true)}>Import World Pack</button>
+            </div>
+
+            {exportError ? <p role="alert" className="library-error-line">{exportError}</p> : null}
+            {deleteError ? <p role="alert" className="library-error-line">{deleteError}</p> : null}
+
+            <div className="pack-shelf-wrap">
+              <div className="pack-shelf">
+                {entries.map((entry) => (
+                  <button
+                    key={entry.pack.packId}
+                    type="button"
+                    className={`pack-spine${selectedPackId === entry.pack.packId ? " is-open" : ""}`}
+                    aria-expanded={selectedPackId === entry.pack.packId}
+                    aria-controls="shelf-popover"
+                    onClick={() =>
+                      setSelectedPackId((current) => (current === entry.pack.packId ? null : entry.pack.packId))
+                    }
+                  >
+                    <span className="pack-spine-title">{entry.pack.title}</span>
+                  </button>
+                ))}
+                <button type="button" className="pack-spine pack-spine--add" onClick={onCreatePack} aria-label="Create World Pack">
+                  <span className="pack-spine-add-mark" aria-hidden="true">+</span>
+                  <span className="pack-spine-title">New World Pack</span>
+                </button>
+              </div>
+
+              {selectedEntry ? (
+                <div id="shelf-popover" className="info-panel shelf-popover">
+                  <button type="button" className="shelf-popover-close" onClick={() => setSelectedPackId(null)} aria-label="Close">
+                    ×
+                  </button>
+                  <p className="info-panel-kind">Local World Pack</p>
+                  <h2>{selectedEntry.pack.title}</h2>
+                  <p className="info-panel-sub">Updated {selectedEntry.updatedAt}</p>
+                  <WorldPackSummary pack={selectedEntry.pack} />
+                  <p className="info-panel-desc">{selectedEntry.pack.description}</p>
+                  <p className="info-panel-id">ID {selectedEntry.pack.packId}</p>
+                  <div className="info-panel-actions">
+                    <button type="button" className="btn btn-primary" onClick={() => onOpenLocal(selectedEntry.pack.packId)}>
+                      Audit
+                    </button>
+                    <button type="button" className="btn" onClick={() => onEditPack(selectedEntry.pack.packId)}>
+                      Edit
+                    </button>
+                    <button type="button" className="btn" onClick={() => handleExport(selectedEntry.pack)}>
+                      Export
+                    </button>
+                    <button type="button" className="btn btn-danger" onClick={() => setDeleteTarget(selectedEntry)}>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+
+            {entries.length === 0 ? (
+              <p className="shelf-empty-hint">
+                No World Packs saved yet. Import a world-pack/v1 JSON file, or paste one, to begin your archive.
+              </p>
+            ) : null}
           </div>
         </div>
-
-        {exportError ? <p role="alert" className="library-error-line">{exportError}</p> : null}
-        {deleteError ? <p role="alert" className="library-error-line">{deleteError}</p> : null}
-
-        {libraryError ? (
-          <LibraryErrorState error={libraryError} onReset={() => setResetOpen(true)} onRetry={reload} />
-        ) : entries.length === 0 ? (
-          <p className="library-empty">
-            No World Packs saved yet. Import a world-pack/v1 JSON file, or paste one, to begin your archive.
-          </p>
-        ) : (
-          <ul className="pack-list">
-            {entries.map((entry) => (
-              <li key={entry.pack.packId} className="pack-card">
-                <div className="pack-card-head">
-                  <h3>{entry.pack.title}</h3>
-                  <p className="pack-preview-id">ID {entry.pack.packId}</p>
-                </div>
-                <WorldPackSummary pack={entry.pack} />
-                <p className="pack-desc">{entry.pack.description}</p>
-                <p className="pack-updated">Updated {entry.updatedAt}</p>
-                <div className="pack-actions">
-                  <button type="button" onClick={() => onOpenLocal(entry.pack.packId)}>Audit</button>
-                  <button type="button" onClick={() => onEditPack(entry.pack.packId)}>Edit</button>
-                  <button type="button" onClick={() => handleExport(entry.pack)}>Export</button>
-                  <button type="button" onClick={() => setDeleteTarget(entry)}>Delete</button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      )}
 
       <WorldPackImportDialog open={importOpen} onClose={() => setImportOpen(false)} onSaved={reload} />
 
