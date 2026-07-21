@@ -80,6 +80,7 @@ describe("portable Clockwork workflow", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<MisruleProduct bundledPacks={[ashglassPack]} />);
+    fireEvent.click(screen.getByRole("button", { name: /Harbor of Hours/ }));
     fireEvent.click(screen.getByRole("button", { name: "Audit" }));
     openMountedArchive(/Open the Harbor of Hours archive/);
     expect(screen.getByText("Every bell changes which tide may enter the harbor.")).toBeInTheDocument();
@@ -142,6 +143,7 @@ describe("portable Clockwork workflow", () => {
     saveLocalWorldPack(portablePack);
     render(<MisruleProduct bundledPacks={[ashglassPack]} />);
 
+    fireEvent.click(screen.getByRole("button", { name: /Harbor of Hours/ }));
     fireEvent.click(screen.getByRole("button", { name: "Audit" }));
     openMountedArchive(/Open the Harbor of Hours archive/);
     expect(screen.getByRole("button", { name: /Model & privacy/ })).toBeInTheDocument();

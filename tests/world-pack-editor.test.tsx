@@ -57,11 +57,14 @@ describe("World Pack editor product flow", () => {
     renderProduct();
 
     expect(screen.getByRole("button", { name: "Create World Pack" })).toBeInTheDocument();
+
+    // Bundled sample is selected by default and must not offer Edit.
+    expect(screen.getByRole("heading", { name: "The Ashglass Clocktower" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+
+    // Selecting the local pack's spine reveals its Edit action.
+    fireEvent.click(screen.getByRole("button", { name: /Harbor of Hours/ }));
     expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
-    const bundled = screen.getByRole("heading", { name: "The Ashglass Clocktower" }).closest("article");
-    expect(bundled).not.toBeNull();
-    if (!bundled) return;
-    expect(within(bundled).queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
   });
 
   it("rejects invalid blank drafts and saves a valid new local pack", async () => {
@@ -84,6 +87,7 @@ describe("World Pack editor product flow", () => {
     expect(saved.spans[0].displayOrder).toBe(0);
 
     fireEvent.click(screen.getByRole("button", { name: "Return to library" }));
+    fireEvent.click(await screen.findByRole("button", { name: /Trial World/ }));
     fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
     expect(await screen.findAllByDisplayValue("Trial World")).toHaveLength(2);
   });
@@ -92,6 +96,7 @@ describe("World Pack editor product flow", () => {
     saveLocalWorldPack(portablePack, { now: () => "2026-07-20T01:00:00.000Z" });
     renderProduct();
 
+    fireEvent.click(screen.getByRole("button", { name: /Harbor of Hours/ }));
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     fireEvent.change(await screen.findByLabelText("Pack title"), { target: { value: "Harbor Revised" } });
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -105,6 +110,7 @@ describe("World Pack editor product flow", () => {
   it("blocks deleting referenced books, then permits deletion after deliberate reassignment", async () => {
     saveLocalWorldPack(portablePack);
     renderProduct();
+    fireEvent.click(screen.getByRole("button", { name: /Harbor of Hours/ }));
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
 
     const bookTwo = await screen.findByRole("group", { name: /Book 2: Dusk Ledger/ });
@@ -130,6 +136,7 @@ describe("World Pack editor product flow", () => {
   it("protects unsaved in-app navigation and clears beforeunload after save", async () => {
     saveLocalWorldPack(portablePack);
     renderProduct();
+    fireEvent.click(screen.getByRole("button", { name: /Harbor of Hours/ }));
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     fireEvent.change(await screen.findByLabelText("Pack title"), { target: { value: "Dirty Harbor" } });
 
@@ -153,6 +160,7 @@ describe("World Pack editor product flow", () => {
   it("does not recreate an edit target that disappears before save", async () => {
     saveLocalWorldPack(portablePack);
     renderProduct();
+    fireEvent.click(screen.getByRole("button", { name: /Harbor of Hours/ }));
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     fireEvent.change(await screen.findByLabelText("Pack title"), { target: { value: "Vanished Harbor" } });
     localStorage.clear();
