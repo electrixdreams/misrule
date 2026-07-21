@@ -1,11 +1,11 @@
 import type { AuditErrorResponse, AuditResultDto, FindingDto } from "@/lib/contracts";
 
 export const stations = [
-  { id: "world", primary: "World", secondary: "Overview", shortcut: "Alt+1", angle: -8 },
-  { id: "rules", primary: "Rules", secondary: "Axioms", shortcut: "Alt+2", angle: -72 },
-  { id: "record", primary: "Record", secondary: "Evidence", shortcut: "Alt+3", angle: 68 },
-  { id: "findings", primary: "Findings", secondary: "Traces", shortcut: "Alt+4", angle: -138 },
-  { id: "method", primary: "Method", secondary: "Disclosure", shortcut: "Alt+5", angle: 132 },
+  { id: "world", primary: "World", secondary: "Overview", shortcut: "Alt+1" },
+  { id: "rules", primary: "Rules", secondary: "Axioms", shortcut: "Alt+2" },
+  { id: "record", primary: "Record", secondary: "Evidence", shortcut: "Alt+3" },
+  { id: "findings", primary: "Findings", secondary: "Traces", shortcut: "Alt+4" },
+  { id: "method", primary: "Method", secondary: "Disclosure", shortcut: "Alt+5" },
 ] as const;
 
 export type StationId = (typeof stations)[number]["id"];
@@ -42,7 +42,7 @@ export type MisruleAction =
   | { type: "AUDIT_SUCCEEDED"; result: AuditResultDto }
   | { type: "AUDIT_FAILED"; error: AuditErrorResponse["error"] }
   | { type: "AUDIT_FAILURE_DISMISSED" }
-  | { type: "ACTIVE_WORLD_CHANGED"; title: string };
+  | { type: "ACTIVE_WORLD_CHANGED"; title: string; skipEntryGate: boolean };
 
 export const initialMisruleState: MisruleState = {
   entryOpen: true,
@@ -108,7 +108,7 @@ export function misruleReducer(state: MisruleState, action: MisruleAction): Misr
     case "ACTIVE_WORLD_CHANGED":
       return {
         ...state,
-        entryOpen: true,
+        entryOpen: !action.skipEntryGate,
         selectedStation: "world",
         selectedSource: null,
         selectedFindingId: null,
@@ -133,10 +133,6 @@ export function selectTopology(finding: FindingDto | null) {
   if (!finding) return { topology: "none" as const };
   if (finding.kind === "contradiction") return { topology: "closed" as const, pathLength: finding.trace.length };
   return { topology: "open" as const, pathLength: finding.trace.length, missingFact: finding.missingFact! };
-}
-
-export function selectHandAngle(station: StationId) {
-  return stations.find((candidate) => candidate.id === station)!.angle;
 }
 
 export function isQuietedForReading(state: MisruleState) {
