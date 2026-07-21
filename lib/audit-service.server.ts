@@ -17,8 +17,8 @@ import { MAX_WORLD_PACK_BYTES, serializedWorldPackByteLength, worldPackSchema, t
 
 export { AuditServiceError } from "@/lib/audit-errors";
 
-export const CANDIDATE_PROMPT_VERSION = "misrule-candidates/v1";
-export const ADJUDICATION_PROMPT_VERSION = "misrule-adjudication/v1";
+export const CANDIDATE_PROMPT_VERSION = "misrule-candidates/v2";
+export const ADJUDICATION_PROMPT_VERSION = "misrule-adjudication/v2";
 export const PROMPT_VERSION = CANDIDATE_PROMPT_VERSION;
 export const MODEL_SCHEMA_VERSION = "model-output/v1";
 export const CANDIDATE_SCHEMA_VERSION = "candidate-output/v1";
@@ -167,6 +167,19 @@ type ProviderErrorContext = {
   requestedModel: string;
   started: number;
 };
+
+type StageTransportSchema = typeof candidateOutputTransportSchema | typeof adjudicationOutputTransportSchema;
+
+export function jsonObjectSystemContract(schema: StageTransportSchema, schemaName: string) {
+  const schemaContract = zodResponseFormat(schema, schemaName).json_schema.schema;
+  return [
+    "Return one valid JSON object and no markdown or surrounding prose.",
+    "The object must match the following JSON Schema exactly.",
+    "Do not add fields that are not defined by the schema.",
+    "Do not omit required fields.",
+    JSON.stringify(schemaContract),
+  ].join(" ");
+}
 
 function objectRecord(value: unknown): Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
@@ -362,7 +375,7 @@ export class OpenAICompatibleAuditGateway implements AuditModelGateway {
     promptVersion: string,
     schemaVersion: string,
     schemaName: string,
-    schema: typeof candidateOutputTransportSchema | typeof adjudicationOutputTransportSchema,
+    schema: StageTransportSchema,
     systemInstructions: string[],
     input: AuditModelInput | AuditAdjudicationInput,
   ): Promise<GatewayStageResult> {
@@ -379,7 +392,7 @@ export class OpenAICompatibleAuditGateway implements AuditModelGateway {
             role: "system" as const,
             content: [
               ...systemInstructions,
-              ...(this.settings.outputTransport === "json_object" ? ["Return one valid JSON object and no markdown or surrounding prose."] : []),
+              ...(this.settings.outputTransport === "json_object" ? [jsonObjectSystemContract(schema, schemaName)] : []),
             ].join(" "),
           },
           { role: "user" as const, content: JSON.stringify(input) },

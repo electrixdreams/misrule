@@ -21,6 +21,7 @@ import {
   OpenAICompatibleAuditGateway,
   buildModelInput,
   executeLiveAudit,
+  jsonObjectSystemContract,
   type AuditModelGateway,
   type GatewayStageResult,
 } from "@/lib/audit-service.server";
@@ -110,6 +111,20 @@ function rejectDecision(candidateId: string) {
     rejection_reason: "consistent_with_rules" as const,
     explanation: "The cited path remains consistent with the supplied rules.",
   };
+}
+
+function jsonObjectContractSchema(systemContent: string) {
+  const marker = "Do not omit required fields. ";
+  const markerIndex = systemContent.indexOf(marker);
+  expect(markerIndex).toBeGreaterThanOrEqual(0);
+  return JSON.parse(systemContent.slice(markerIndex + marker.length));
+}
+
+function collectRequiredFields(value: unknown): string[] {
+  if (!value || typeof value !== "object") return [];
+  const record = value as Record<string, unknown>;
+  const here = Array.isArray(record.required) ? record.required.filter((field): field is string => typeof field === "string") : [];
+  return Object.values(record).reduce<string[]>((fields, child) => fields.concat(collectRequiredFields(child)), here);
 }
 
 describe("audit service", () => {
@@ -295,7 +310,7 @@ describe("audit service", () => {
       const evidence = JSON.parse(await readFile(join(directory, files[0]), "utf8"));
       expect(evidence).toMatchObject({
         evidenceVersion: "misrule-route-proof/v2",
-        promptVersions: { candidates: "misrule-candidates/v1", adjudication: "misrule-adjudication/v1" },
+        promptVersions: { candidates: CANDIDATE_PROMPT_VERSION, adjudication: ADJUDICATION_PROMPT_VERSION },
         schemaVersions: { candidates: "candidate-output/v1", adjudication: "adjudication-output/v1", final: "model-output/v1" },
         canonicalCandidateValidation: { status: "PASS", candidateCount: 2 },
         canonicalAdjudicationValidation: { status: "PASS", decisionCount: 2, acceptedCount: 2, rejectedCount: 0 },
@@ -318,6 +333,32 @@ describe("audit service", () => {
       adjudicateCandidates: vi.fn(),
     };
     await expect(executeLiveAudit(request, { gateway })).rejects.toMatchObject({ code: "MALFORMED_OUTPUT", status: 422 });
+  });
+
+  it("rejects the observed 12D.2 wrong candidate JSON shape before adjudication", async () => {
+    const adjudicateCandidates = vi.fn();
+    const wrong12d2Shape = {
+      schema_version: "candidate-output/v1",
+      candidates: [
+        {
+          candidate_id: "1",
+          official_unsure: false,
+          supported_readings: [],
+          missing_fact: null,
+          why_unresolved: null,
+          contradiction: {
+            fact_1: { rule_id: "RG-R03", path_steps: ["RG-R03"], text: "Captain Orin Vale died in Year 412." },
+            fact_2: { rule_id: null, path_steps: ["RG-S01", "RG-S02"], text_reference: "Orin appears alive in Year 415." },
+          },
+        },
+      ],
+    };
+    const gateway: AuditModelGateway = {
+      generateCandidates: async () => stageResult("candidate-generation", wrong12d2Shape),
+      adjudicateCandidates,
+    };
+    await expect(executeLiveAudit(request, { gateway })).rejects.toMatchObject({ code: "MALFORMED_OUTPUT", status: 422 });
+    expect(adjudicateCandidates).not.toHaveBeenCalled();
   });
 
   it("types malformed adjudication output before final assembly", async () => {
@@ -407,6 +448,8 @@ describe("audit service", () => {
     expect(adjudicationBody).not.toHaveProperty("max_completion_tokens");
     expect(JSON.stringify(candidateBody)).not.toContain("session-secret");
     expect(JSON.stringify(adjudicationBody)).not.toContain("session-secret");
+    expect(candidateBody.messages[0].content).not.toContain("The object must match the following JSON Schema exactly.");
+    expect(adjudicationBody.messages[0].content).not.toContain("The object must match the following JSON Schema exactly.");
   });
 
   it("returns unparseable provider text for canonical rejection", async () => {
@@ -534,7 +577,50 @@ describe("audit service", () => {
     expect(candidateBody).toMatchObject({ model: "google/gemini-2.5-flash", max_tokens: 16_000, provider: { require_parameters: true } });
     expect(adjudicationBody).toMatchObject({ model: "google/gemini-2.5-flash", max_tokens: 16_000, provider: { require_parameters: true } });
     expect(candidateBody.messages[0].content).toContain("Return one valid JSON object and no markdown or surrounding prose.");
+    expect(candidateBody.messages[0].content).toContain("The object must match the following JSON Schema exactly.");
+    expect(candidateBody.messages[0].content).toContain("Do not add fields that are not defined by the schema.");
+    expect(candidateBody.messages[0].content).toContain("Do not omit required fields.");
+    expect(adjudicationBody.messages[0].content).toContain("The object must match the following JSON Schema exactly.");
+
+    const candidateSchema = zodResponseFormat(candidateOutputTransportSchema, "misrule_candidates").json_schema.schema;
+    const adjudicationSchema = zodResponseFormat(adjudicationOutputTransportSchema, "misrule_adjudication").json_schema.schema;
+    expect(jsonObjectContractSchema(candidateBody.messages[0].content)).toEqual(candidateSchema);
+    expect(jsonObjectContractSchema(adjudicationBody.messages[0].content)).toEqual(adjudicationSchema);
+
+    const candidateRequired = collectRequiredFields(candidateSchema);
+    expect(candidateRequired).toEqual(expect.arrayContaining([
+      "schema_version",
+      "candidates",
+      "unresolved_questions",
+      "kind",
+      "title",
+      "rule_ids",
+      "span_ids",
+      "path_steps",
+      "explanation",
+      "missing_fact",
+      "why_unresolved",
+      "supported_readings",
+    ]));
+    const serializedCandidateSchema = JSON.stringify(candidateSchema);
+    expect(serializedCandidateSchema).not.toContain("candidate_id");
+    expect(serializedCandidateSchema).not.toContain("official_unsure");
+    expect(serializedCandidateSchema).not.toContain("fact_1");
+    expect(serializedCandidateSchema).not.toContain("fact_2");
+
+    const adjudicationRequired = collectRequiredFields(adjudicationSchema);
+    expect(adjudicationRequired).toEqual(expect.arrayContaining(["schema_version", "decisions", "candidate_id", "decision", "finding", "rejection_reason", "explanation"]));
     expect(new Headers(fetchMock.mock.calls[0][1]?.headers as HeadersInit).get("X-OpenRouter-Metadata")).toBe("enabled");
+  });
+
+  it("derives JSON-object prompt contracts from active transport schemas without fixture text", () => {
+    const candidateContract = jsonObjectSystemContract(candidateOutputTransportSchema, "misrule_candidates");
+    const adjudicationContract = jsonObjectSystemContract(adjudicationOutputTransportSchema, "misrule_adjudication");
+    expect(jsonObjectContractSchema(candidateContract)).toEqual(zodResponseFormat(candidateOutputTransportSchema, "misrule_candidates").json_schema.schema);
+    expect(jsonObjectContractSchema(adjudicationContract)).toEqual(zodResponseFormat(adjudicationOutputTransportSchema, "misrule_adjudication").json_schema.schema);
+    expect(`${candidateContract} ${adjudicationContract}`).not.toContain("Ashglass");
+    expect(`${candidateContract} ${adjudicationContract}`).not.toContain("RG-R");
+    expect(`${candidateContract} ${adjudicationContract}`).not.toContain("LAW-A");
   });
 
   it("uses provider-portable transport schema_version enums instead of JSON Schema const", () => {
