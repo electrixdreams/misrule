@@ -47,6 +47,7 @@ function stageResult(stage: GatewayStageResult["stage"], output: unknown): Gatew
     routerMetadata: null,
     rawResponse: { output },
     latencyMs: 0,
+    temperature: 0,
   };
 }
 
@@ -256,7 +257,8 @@ describe("12C provider transport", () => {
     expect(body1.response_format.json_schema.name).toBe("misrule_adjudication");
     // OpenRouter limits retained + key absent + no retry implied.
     expect(body0).toMatchObject({ max_tokens: 16_000, provider: { require_parameters: true } });
-    expect(body1).toMatchObject({ max_tokens: 16_000, provider: { require_parameters: true } });
+    expect(body0.temperature).toBe(0);
+    expect(body1).toMatchObject({ max_tokens: 16_000, temperature: 0, provider: { require_parameters: true } });
     expect(JSON.stringify(body0)).not.toContain("session-secret");
     expect(JSON.stringify(body1)).not.toContain("session-secret");
   });

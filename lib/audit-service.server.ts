@@ -6,7 +6,7 @@ import path from "node:path";
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import type { AuditRequest, AuditResultDto, AuditSuccessResponse } from "@/lib/contracts";
-import { acceptedAdjudicationFromCandidates, adjudicationOutputTransportSchema, validateAdjudicationOutput } from "@/lib/adjudication-output.server";
+import { acceptedAdjudicationTransportFromCandidates, adjudicationOutputSchema, adjudicationOutputTransportSchema, adjudicationTransportOutputFromCanonical, validateAdjudicationOutput } from "@/lib/adjudication-output.server";
 import { AuditServiceError, type ProviderFailureDiagnostic, type SafeOpenRouterMetadata } from "@/lib/audit-errors";
 import { candidateOutputFromModelOutput, candidateOutputTransportSchema, modelOutputFromCandidates, validateCandidateOutput, type CanonicalCandidate } from "@/lib/candidate-output.server";
 import { WorldPackRepositoryError, loadBundledWorldPack } from "@/lib/world-pack-catalog.server";
@@ -17,8 +17,8 @@ import { MAX_WORLD_PACK_BYTES, serializedWorldPackByteLength, worldPackSchema, t
 
 export { AuditServiceError } from "@/lib/audit-errors";
 
-export const CANDIDATE_PROMPT_VERSION = "misrule-candidates/v2";
-export const ADJUDICATION_PROMPT_VERSION = "misrule-adjudication/v2";
+export const CANDIDATE_PROMPT_VERSION = "misrule-candidates/v3";
+export const ADJUDICATION_PROMPT_VERSION = "misrule-adjudication/v3";
 export const PROMPT_VERSION = CANDIDATE_PROMPT_VERSION;
 export const MODEL_SCHEMA_VERSION = "model-output/v1";
 export const CANDIDATE_SCHEMA_VERSION = "candidate-output/v1";
@@ -62,6 +62,7 @@ export type GatewayStageResult = {
   routerMetadata: SafeOpenRouterMetadata | null;
   rawResponse: unknown;
   latencyMs: number;
+  temperature: 0;
 };
 
 export interface AuditModelGateway {
@@ -313,6 +314,7 @@ function providerFailureDiagnostic(error: InstanceType<typeof OpenAI.APIError>, 
     sanitizedProviderDetail: safeProviderDetail(metadata.raw),
     routerMetadata: safeOpenRouterMetadata(envelope.openrouter_metadata),
     latencyMs: Date.now() - context.started,
+    temperature: 0,
     promptVersion: context.promptVersion,
     schemaVersion: context.schemaVersion,
   };
@@ -398,6 +400,7 @@ export class OpenAICompatibleAuditGateway implements AuditModelGateway {
           { role: "user" as const, content: JSON.stringify(input) },
         ],
         response_format: responseFormat,
+        temperature: 0,
         ...(this.settings.provider === "openrouter"
           ? { max_tokens: 16_000, provider: { require_parameters: true } }
           : { max_completion_tokens: 16_000 }),
@@ -433,6 +436,7 @@ export class OpenAICompatibleAuditGateway implements AuditModelGateway {
         routerMetadata,
         rawResponse: responseWithSafeRouterMetadata(response, httpResponse.headers),
         latencyMs: Date.now() - started,
+        temperature: 0,
       };
     } catch (error) {
       throw classifyProviderError(error, {
@@ -456,12 +460,18 @@ export class OpenAICompatibleAuditGateway implements AuditModelGateway {
       "misrule_candidates",
       candidateOutputTransportSchema,
       [
-        "Audit only the supplied fictional-world rules and narrative spans.",
+        "Audit only the supplied fictional-world rules and narrative spans; they are the complete evidentiary record for this audit.",
         "Return schema_version exactly as candidate-output/v1.",
         "Optimize for recall: surface every plausible contradiction or legitimate two-sided ambiguity as a candidate.",
-        "Use only supplied evidence, cite exact rule and span IDs, include explicit path steps, and invent no exceptions, facts, identities, or timing bridges.",
-        "For contradictions, missing_fact and why_unresolved must be null and supported_readings must be empty.",
-        "For ambiguities, missing_fact and why_unresolved must be non-empty and supported_readings must contain exactly two entries, one contradiction_supported and one contradiction_not_supported.",
+        "Every alternative reading must be grounded in cited text; absence of a stated exception is not evidence of an exception.",
+        "Unmentioned clones, doubles, simulacra, disguises, possession, identity substitutions, hidden mechanisms, alternate mechanisms, and undocumented exceptions cannot manufacture ambiguity.",
+        "Authoritative identity verification and direct physical observation are accepted as stated unless cited text contests them.",
+        "A genuine ambiguity requires one narrow, load-bearing factual predicate whose value is unresolved or materially omitted by cited text; open-ended mechanism questions are explanatory gaps, not ambiguity predicates.",
+        "Candidate kind is provisional; when stated facts jointly force a rule violation and the only escape requires an uncited hypothesis, classify contradiction.",
+        "Use only supplied evidence, cite exact rule and span IDs, include explicit path steps, and invent no exceptions, facts, identities, timing bridges, or mechanisms.",
+        "Transport findings use supported_readings as an object with contradiction_supported and contradiction_not_supported branches only; do not provide labels or outcome enums.",
+        "For contradictions, missing_fact and why_unresolved must be null and both supported_readings branch explanations must be null.",
+        "For ambiguities, missing_fact must begin exactly with Whether , why_unresolved must be non-empty, and both supported_readings branch explanations must be non-empty.",
         "Every cited rule or span must appear in path_steps and every rule/span path step must be cited.",
         "Do not choose candidate IDs; return only the strict schema.",
       ],
@@ -477,13 +487,21 @@ export class OpenAICompatibleAuditGateway implements AuditModelGateway {
       "misrule_adjudication",
       adjudicationOutputTransportSchema,
       [
-        "Adjudicate only the supplied validated candidates and exact cited material.",
+        "Adjudicate only the supplied validated candidates and exact cited material; they are the complete evidentiary record for this audit.",
         "Return schema_version exactly as adjudication-output/v1 and one decision for every candidate ID.",
         "Optimize for precision: inspect cited rules and spans independently rather than trusting candidate explanations.",
-        "Accept a contradiction only when the cited rules apply, the cited path jointly forces a violation, and no rule-consistent reading remains.",
-        "Accept an ambiguity only when one specific missing fact makes both contradiction_supported and contradiction_not_supported readings compatible with the cited text.",
-        "Reject consistent distractors, scope errors, unresolved identity or timing assumptions, invented bridges, duplicate or subsumed routes, and non-two-sided ambiguities.",
+        "Candidate kind is provisional; you must independently choose contradiction or ambiguity and reclassify the accepted finding when required.",
+        "Every alternative reading must be grounded in cited text; absence of a stated exception is not evidence of an exception.",
+        "Unmentioned clones, doubles, simulacra, disguises, possession, identity substitutions, hidden mechanisms, alternate mechanisms, and undocumented exceptions cannot manufacture ambiguity.",
+        "Authoritative identity verification and direct physical observation are accepted as stated unless cited text contests them.",
+        "Accept a contradiction when the cited rules apply, the cited path jointly forces a violation, and the only escape requires an uncited hypothesis.",
+        "Accept an ambiguity only when one narrow, load-bearing factual predicate is unresolved or materially omitted by cited text and both contradiction_supported and contradiction_not_supported readings remain cited-text-grounded.",
+        "Open-ended mechanism questions such as how could this happen are explanatory gaps, not ambiguity predicates.",
+        "Reject consistent distractors, scope errors, unresolved identity or timing assumptions, invented bridges, duplicate or subsumed routes, non-two-sided ambiguities, and uncited alternate mechanisms.",
         "Accepted findings may cite only a subset of that candidate's cited rules and spans; never add new evidence.",
+        "Transport findings use supported_readings as an object with contradiction_supported and contradiction_not_supported branches only; do not provide labels or outcome enums.",
+        "For contradictions, missing_fact and why_unresolved must be null and both supported_readings branch explanations must be null.",
+        "For ambiguities, missing_fact must begin exactly with Whether , why_unresolved must be non-empty, and both supported_readings branch explanations must be non-empty.",
         "Return only the strict schema.",
       ],
       input,
@@ -516,22 +534,25 @@ export class MockAuditGateway implements AuditModelGateway {
       routerMetadata: null,
       rawResponse: { mode: "mock", output },
       latencyMs: 0,
+      temperature: 0,
     };
   }
 
   async adjudicateCandidates(input: AuditAdjudicationInput): Promise<GatewayStageResult> {
-    const output = this.adjudicationOutput ?? acceptedAdjudicationFromCandidates(
-      input.candidates.map((candidate) => ({
-        candidate_id: candidate.candidateId,
-        proposed_finding: candidate.proposedFinding,
-      })),
-    );
+    const transportOutput = this.adjudicationOutput
+      ? mockAdjudicationOutput(this.adjudicationOutput)
+      : acceptedAdjudicationTransportFromCandidates(
+          input.candidates.map((candidate) => ({
+            candidate_id: candidate.candidateId,
+            proposed_finding: candidate.proposedFinding,
+          })),
+        );
     return {
       stage: "focused-adjudication",
       promptVersion: ADJUDICATION_PROMPT_VERSION,
       schemaVersion: ADJUDICATION_SCHEMA_VERSION,
       outputTransport: "json_schema",
-      output,
+      output: transportOutput,
       provider: "deterministic-mock",
       endpointHost: "local",
       requestedModel: "deterministic-mock",
@@ -540,10 +561,16 @@ export class MockAuditGateway implements AuditModelGateway {
       openRouterRequestId: null,
       generationId: null,
       routerMetadata: null,
-      rawResponse: { mode: "mock", output },
+      rawResponse: { mode: "mock", output: transportOutput },
       latencyMs: 0,
+      temperature: 0,
     };
   }
+}
+
+function mockAdjudicationOutput(output: unknown): unknown {
+  const parsed = adjudicationOutputSchema.safeParse(output);
+  return parsed.success ? adjudicationTransportOutputFromCanonical(parsed.data) : output;
 }
 
 async function preserveEvidence(directory: string | undefined, evidence: Record<string, unknown>) {
@@ -619,6 +646,7 @@ function stageEvidenceBlock(candidate: GatewayStageResult, adjudication: Gateway
         openRouterRequestId: candidate.openRouterRequestId,
         generationId: candidate.generationId,
         routerMetadata: candidate.routerMetadata,
+        temperature: candidate.temperature,
       },
       focusedAdjudication: adjudication
         ? {
@@ -631,6 +659,7 @@ function stageEvidenceBlock(candidate: GatewayStageResult, adjudication: Gateway
             openRouterRequestId: adjudication.openRouterRequestId,
             generationId: adjudication.generationId,
             routerMetadata: adjudication.routerMetadata,
+            temperature: adjudication.temperature,
           }
         : null,
     },

@@ -67,11 +67,16 @@ const transportPathStepSchema = z
   })
   .strict();
 
-const transportSupportedReadingSchema = z
+const transportSupportedReadingBranchSchema = z
   .object({
-    label: z.string(),
-    outcome: z.enum(["contradiction_supported", "contradiction_not_supported"]),
-    explanation: z.string(),
+    explanation: z.string().nullable(),
+  })
+  .strict();
+
+const transportSupportedReadingsSchema = z
+  .object({
+    contradiction_supported: transportSupportedReadingBranchSchema,
+    contradiction_not_supported: transportSupportedReadingBranchSchema,
   })
   .strict();
 
@@ -85,7 +90,7 @@ export const modelFindingTransportSchema = z
     explanation: z.string(),
     missing_fact: z.string().nullable(),
     why_unresolved: z.string().nullable(),
-    supported_readings: z.array(transportSupportedReadingSchema),
+    supported_readings: transportSupportedReadingsSchema,
   })
   .strict();
 
@@ -107,6 +112,14 @@ export const modelAuditOutputSchema = z
 
 export type ModelFinding = z.infer<typeof modelFindingSchema>;
 export type ModelAuditOutput = z.infer<typeof modelAuditOutputSchema>;
+export type ModelFindingTransport = z.infer<typeof modelFindingTransportSchema>;
+export type ModelAuditTransport = z.infer<typeof modelAuditTransportSchema>;
+
+export type TransportConversionIssue = {
+  code: "INVALID_TRANSPORT_SEMANTICS";
+  path: Array<string | number>;
+  message: string;
+};
 
 export type SemanticValidationIssue = {
   findingIndex: number;
@@ -119,12 +132,126 @@ export type SemanticValidationIssue = {
     | "CITED_RULE_NOT_TRACED"
     | "CITED_SPAN_NOT_TRACED"
     | "INVALID_READING_OUTCOMES"
+    | "AMBIGUITY_MISSING_FACT_NOT_BINARY"
     | "DUPLICATE_FINDING";
   message: string;
 };
 
 function duplicates(values: string[]) {
   return values.filter((value, index) => values.indexOf(value) !== index);
+}
+
+function transportIssue(path: Array<string | number>, message: string): TransportConversionIssue {
+  return { code: "INVALID_TRANSPORT_SEMANTICS", path, message };
+}
+
+function transportIssuePath(path: PropertyKey[]): Array<string | number> {
+  return path.filter((part): part is string | number => typeof part === "string" || typeof part === "number");
+}
+
+function nonEmptyTransportText(value: string | null) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+export function modelFindingFromTransport(
+  finding: ModelFindingTransport,
+  findingIndex = 0,
+  basePath: Array<string | number> = ["findings", findingIndex],
+): { ok: true; finding: ModelFinding } | { ok: false; issues: TransportConversionIssue[] } {
+  const issues: TransportConversionIssue[] = [];
+
+  if (finding.kind === "contradiction") {
+    if (finding.missing_fact !== null) issues.push(transportIssue([...basePath, "missing_fact"], "Contradictions must use null missing_fact."));
+    if (finding.why_unresolved !== null) issues.push(transportIssue([...basePath, "why_unresolved"], "Contradictions must use null why_unresolved."));
+    if (finding.supported_readings.contradiction_supported.explanation !== null) {
+      issues.push(transportIssue([...basePath, "supported_readings", "contradiction_supported", "explanation"], "Contradictions must use null contradiction_supported explanation."));
+    }
+    if (finding.supported_readings.contradiction_not_supported.explanation !== null) {
+      issues.push(transportIssue([...basePath, "supported_readings", "contradiction_not_supported", "explanation"], "Contradictions must use null contradiction_not_supported explanation."));
+    }
+    if (issues.length > 0) return { ok: false, issues };
+    const canonical = { ...finding, missing_fact: null, why_unresolved: null, supported_readings: [] };
+    const parsed = modelFindingSchema.safeParse(canonical);
+    if (!parsed.success) return { ok: false, issues: parsed.error.issues.map((issue) => transportIssue(transportIssuePath(issue.path), issue.message)) };
+    return { ok: true, finding: parsed.data };
+  }
+
+  if (!nonEmptyTransportText(finding.missing_fact)) issues.push(transportIssue([...basePath, "missing_fact"], "Ambiguities must use a non-empty missing_fact."));
+  if (!nonEmptyTransportText(finding.why_unresolved)) issues.push(transportIssue([...basePath, "why_unresolved"], "Ambiguities must use a non-empty why_unresolved."));
+  const supportedExplanation = finding.supported_readings.contradiction_supported.explanation;
+  const notSupportedExplanation = finding.supported_readings.contradiction_not_supported.explanation;
+  if (!nonEmptyTransportText(supportedExplanation)) {
+    issues.push(transportIssue([...basePath, "supported_readings", "contradiction_supported", "explanation"], "Ambiguities must explain the contradiction-supported branch."));
+  }
+  if (!nonEmptyTransportText(notSupportedExplanation)) {
+    issues.push(transportIssue([...basePath, "supported_readings", "contradiction_not_supported", "explanation"], "Ambiguities must explain the contradiction-not-supported branch."));
+  }
+  if (issues.length > 0) return { ok: false, issues };
+
+  const canonical = {
+    ...finding,
+    missing_fact: finding.missing_fact,
+    why_unresolved: finding.why_unresolved,
+    supported_readings: [
+      {
+        label: "Contradiction",
+        outcome: "contradiction_supported" as const,
+        explanation: supportedExplanation,
+      },
+      {
+        label: "No contradiction",
+        outcome: "contradiction_not_supported" as const,
+        explanation: notSupportedExplanation,
+      },
+    ],
+  };
+  const parsed = modelFindingSchema.safeParse(canonical);
+  if (!parsed.success) return { ok: false, issues: parsed.error.issues.map((issue) => transportIssue(transportIssuePath(issue.path), issue.message)) };
+  return { ok: true, finding: parsed.data };
+}
+
+export function modelAuditOutputFromTransport(output: ModelAuditTransport): { ok: true; output: ModelAuditOutput } | { ok: false; issues: TransportConversionIssue[] } {
+  const findings: ModelFinding[] = [];
+  const issues: TransportConversionIssue[] = [];
+  for (const [index, finding] of output.findings.entries()) {
+    const converted = modelFindingFromTransport(finding, index);
+    if (converted.ok) findings.push(converted.finding);
+    else issues.push(...converted.issues);
+  }
+  if (issues.length > 0) return { ok: false, issues };
+  const canonical = { schema_version: "model-output/v1" as const, findings, unresolved_questions: output.unresolved_questions };
+  const parsed = modelAuditOutputSchema.safeParse(canonical);
+  if (!parsed.success) return { ok: false, issues: parsed.error.issues.map((issue) => transportIssue(transportIssuePath(issue.path), issue.message)) };
+  return { ok: true, output: parsed.data };
+}
+
+export function modelFindingTransportFromCanonical(finding: ModelFinding): ModelFindingTransport {
+  if (finding.kind === "contradiction") {
+    return {
+      ...finding,
+      supported_readings: {
+        contradiction_supported: { explanation: null },
+        contradiction_not_supported: { explanation: null },
+      },
+    };
+  }
+  const supported = finding.supported_readings.find((reading) => reading.outcome === "contradiction_supported");
+  const notSupported = finding.supported_readings.find((reading) => reading.outcome === "contradiction_not_supported");
+  return {
+    ...finding,
+    supported_readings: {
+      contradiction_supported: { explanation: supported?.explanation ?? "" },
+      contradiction_not_supported: { explanation: notSupported?.explanation ?? "" },
+    },
+  };
+}
+
+export function modelAuditTransportFromCanonical(output: ModelAuditOutput): ModelAuditTransport {
+  return {
+    schema_version: "model-output/v1",
+    findings: output.findings.map(modelFindingTransportFromCanonical),
+    unresolved_questions: output.unresolved_questions,
+  };
 }
 
 export function validateModelOutputSemantics(output: ModelAuditOutput, pack: WorldPack): SemanticValidationIssue[] {
@@ -176,6 +303,13 @@ export function validateModelOutputSemantics(output: ModelAuditOutput, pack: Wor
     }
 
     if (finding.kind === "ambiguity") {
+      if (!finding.missing_fact.trim().startsWith("Whether ")) {
+        issues.push({
+          findingIndex,
+          code: "AMBIGUITY_MISSING_FACT_NOT_BINARY",
+          message: "Ambiguity missing_fact must be one binary predicate beginning with Whether .",
+        });
+      }
       const outcomes = new Set(finding.supported_readings.map((reading) => reading.outcome));
       if (!outcomes.has("contradiction_supported") || !outcomes.has("contradiction_not_supported")) {
         issues.push({ findingIndex, code: "INVALID_READING_OUTCOMES", message: "Ambiguity must include one supported and one unsupported contradiction reading." });

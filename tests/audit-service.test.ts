@@ -11,6 +11,7 @@ import { deterministicMockOutput } from "@/lib/mock-audit.server";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { adjudicationOutputTransportSchema } from "@/lib/adjudication-output.server";
 import { candidateOutputTransportSchema } from "@/lib/candidate-output.server";
+import { modelFindingSchema, modelFindingTransportFromCanonical } from "@/lib/model-output.server";
 import {
   ADJUDICATION_PROMPT_VERSION,
   ADJUDICATION_SCHEMA_VERSION,
@@ -89,19 +90,25 @@ function stageResult(stage: GatewayStageResult["stage"], output: unknown): Gatew
     routerMetadata: null,
     rawResponse: { output },
     latencyMs: 0,
+    temperature: 0,
   };
+}
+
+function transportFinding(finding: unknown) {
+  const parsed = modelFindingSchema.safeParse(finding);
+  return parsed.success ? modelFindingTransportFromCanonical(parsed.data) : finding;
 }
 
 function candidateOutputFrom(findings: unknown[] = portableOutput.findings, unresolvedQuestions: string[] = portableOutput.unresolved_questions) {
   return {
     schema_version: "candidate-output/v1" as const,
-    candidates: findings,
+    candidates: findings.map(transportFinding),
     unresolved_questions: unresolvedQuestions,
   };
 }
 
 function acceptDecision(candidateId: string, finding: unknown) {
-  return { candidate_id: candidateId, decision: "accept" as const, finding };
+  return { candidate_id: candidateId, decision: "accept" as const, finding: transportFinding(finding) };
 }
 
 function rejectDecision(candidateId: string) {
@@ -190,7 +197,7 @@ describe("audit service", () => {
     const reclassifiedFinding = {
       ...portableOutput.findings[0],
       kind: "ambiguity" as const,
-      missing_fact: "Which tide entered first after the bell.",
+      missing_fact: "Whether the white tide entered before the black tide after the bell.",
       why_unresolved: "The notes do not establish sequence between the two entries.",
       supported_readings: [
         { label: "White first", outcome: "contradiction_supported" as const, explanation: "The second entry violates the single-tide rule." },
@@ -322,6 +329,9 @@ describe("audit service", () => {
       expect(evidence.adjudicationInput).toBeDefined();
       expect(evidence.rawCandidateResponse).toBeDefined();
       expect(evidence.rawAdjudicationResponse).toBeDefined();
+      expect(evidence.stages.candidateGeneration.temperature).toBe(0);
+      expect(evidence.stages.focusedAdjudication.temperature).toBe(0);
+      expect(JSON.stringify(evidence.normalizedAudit)).not.toContain("temperature");
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
@@ -380,6 +390,52 @@ describe("audit service", () => {
     await expect(executeLiveAudit(request, { gateway })).rejects.toMatchObject({ code: "MALFORMED_OUTPUT", status: 422 });
   });
 
+  it("rejects 12E-style reversed reading arrays and open-ended missing facts as deterministic architecture regressions only", async () => {
+    const pack = worldPackSchema.parse(portable);
+    const oldReversedCandidate = {
+      ...portableOutput.findings[1],
+      missing_fact: "The exact nature and origin of the figure.",
+      supported_readings: [
+        { label: "Contradiction", outcome: "contradiction_not_supported" as const, explanation: "The rule would be violated." },
+        { label: "No contradiction", outcome: "contradiction_supported" as const, explanation: "An uncited alternative might exist." },
+      ],
+    };
+    const legacyGateway: AuditModelGateway = {
+      generateCandidates: async () => stageResult("candidate-generation", { schema_version: "candidate-output/v1", candidates: [oldReversedCandidate], unresolved_questions: [] }),
+      adjudicateCandidates: vi.fn(),
+    };
+    await expect(executeLiveAudit({ ...request, clientRequestId: "regression-12e-old-array", source: { kind: "inline", pack } }, { gateway: legacyGateway })).rejects.toMatchObject({ code: "MALFORMED_OUTPUT", status: 422 });
+
+    const openEndedGateway: AuditModelGateway = {
+      generateCandidates: async () => stageResult("candidate-generation", candidateOutputFrom([oldReversedCandidate], [])),
+      adjudicateCandidates: vi.fn(),
+    };
+    await expect(executeLiveAudit({ ...request, clientRequestId: "regression-12e-open-ended", source: { kind: "inline", pack } }, { gateway: openEndedGateway })).rejects.toMatchObject({ code: "MALFORMED_OUTPUT", status: 422 });
+  });
+
+  it("allows corrected adjudication transport to reclassify the same candidate evidence to contradiction without citation expansion", async () => {
+    const pack = worldPackSchema.parse(portable);
+    const ambiguousCandidate = {
+      ...portableOutput.findings[0],
+      kind: "ambiguity" as const,
+      missing_fact: "Whether the two tide records describe distinct entries.",
+      why_unresolved: "The cited notes do not explicitly say whether the entries are distinct.",
+      supported_readings: [
+        { label: "Distinct entries", outcome: "contradiction_supported" as const, explanation: "Two distinct entries after one bell violate the single-tide rule." },
+        { label: "Same entry", outcome: "contradiction_not_supported" as const, explanation: "One entry described twice would not violate the rule." },
+      ],
+    };
+    const corrected = portableOutput.findings[0];
+    const response = await executeLiveAudit(
+      { ...request, clientRequestId: "regression-12e-corrected", source: { kind: "inline", pack } },
+      { gateway: new MockAuditGateway({ ...portableOutput, findings: [ambiguousCandidate] }, { schema_version: "adjudication-output/v1", decisions: [acceptDecision("candidate-01", corrected)] }) },
+    );
+    expect(response.audit.findings).toHaveLength(1);
+    expect(response.audit.findings[0].kind).toBe("contradiction");
+    expect(response.audit.findings[0].ruleRefs.map((ref) => ref.id)).toEqual(["LAW-A"]);
+    expect(response.audit.findings[0].spanRefs.map((ref) => ref.id)).toEqual(["NOTE-A", "NOTE-B"]);
+  });
+
   it("types invalid citations before normalization", async () => {
     const valid = await new MockAuditGateway().generateCandidates(buildModelInput(worldPackSchema.parse(ashglass)));
     const output = structuredClone(valid.output) as { candidates: Array<{ rule_ids: string[] }> };
@@ -435,12 +491,14 @@ describe("audit service", () => {
     expect(candidateBody).toMatchObject({
       model: "openai/gpt-oss-120b:free",
       max_tokens: 16_000,
+      temperature: 0,
       provider: { require_parameters: true },
       response_format: { type: "json_schema", json_schema: { name: "misrule_candidates", strict: true } },
     });
     expect(adjudicationBody).toMatchObject({
       model: "openai/gpt-oss-120b:free",
       max_tokens: 16_000,
+      temperature: 0,
       provider: { require_parameters: true },
       response_format: { type: "json_schema", json_schema: { name: "misrule_adjudication", strict: true } },
     });
@@ -574,13 +632,23 @@ describe("audit service", () => {
     expect(candidateBody.response_format).toEqual({ type: "json_object" });
     expect(adjudicationBody.response_format).toEqual({ type: "json_object" });
     expect(JSON.stringify(candidateBody.response_format)).not.toContain("json_schema");
-    expect(candidateBody).toMatchObject({ model: "google/gemini-2.5-flash", max_tokens: 16_000, provider: { require_parameters: true } });
-    expect(adjudicationBody).toMatchObject({ model: "google/gemini-2.5-flash", max_tokens: 16_000, provider: { require_parameters: true } });
+    expect(candidateBody).toMatchObject({ model: "google/gemini-2.5-flash", max_tokens: 16_000, temperature: 0, provider: { require_parameters: true } });
+    expect(adjudicationBody).toMatchObject({ model: "google/gemini-2.5-flash", max_tokens: 16_000, temperature: 0, provider: { require_parameters: true } });
     expect(candidateBody.messages[0].content).toContain("Return one valid JSON object and no markdown or surrounding prose.");
     expect(candidateBody.messages[0].content).toContain("The object must match the following JSON Schema exactly.");
     expect(candidateBody.messages[0].content).toContain("Do not add fields that are not defined by the schema.");
     expect(candidateBody.messages[0].content).toContain("Do not omit required fields.");
     expect(adjudicationBody.messages[0].content).toContain("The object must match the following JSON Schema exactly.");
+    expect(candidateBody.messages[0].content).toContain("complete evidentiary record for this audit");
+    expect(candidateBody.messages[0].content).toContain("Every alternative reading must be grounded in cited text");
+    expect(candidateBody.messages[0].content).toContain("absence of a stated exception is not evidence of an exception");
+    expect(candidateBody.messages[0].content).toContain("alternate mechanisms");
+    expect(candidateBody.messages[0].content).toContain("Candidate kind is provisional");
+    expect(adjudicationBody.messages[0].content).toContain("must independently choose contradiction or ambiguity and reclassify");
+    expect(adjudicationBody.messages[0].content).toContain("the only escape requires an uncited hypothesis");
+    expect(`${candidateBody.messages[0].content} ${adjudicationBody.messages[0].content}`).not.toContain("Ashglass");
+    expect(`${candidateBody.messages[0].content} ${adjudicationBody.messages[0].content}`).not.toContain("RG-");
+    expect(`${candidateBody.messages[0].content} ${adjudicationBody.messages[0].content}`).not.toContain("expectedPositiveCases");
 
     const candidateSchema = zodResponseFormat(candidateOutputTransportSchema, "misrule_candidates").json_schema.schema;
     const adjudicationSchema = zodResponseFormat(adjudicationOutputTransportSchema, "misrule_adjudication").json_schema.schema;
@@ -607,6 +675,10 @@ describe("audit service", () => {
     expect(serializedCandidateSchema).not.toContain("official_unsure");
     expect(serializedCandidateSchema).not.toContain("fact_1");
     expect(serializedCandidateSchema).not.toContain("fact_2");
+    expect(serializedCandidateSchema).not.toContain("\"label\"");
+    expect(serializedCandidateSchema).not.toContain("\"outcome\"");
+    expect(serializedCandidateSchema).toContain("contradiction_supported");
+    expect(serializedCandidateSchema).toContain("contradiction_not_supported");
 
     const adjudicationRequired = collectRequiredFields(adjudicationSchema);
     expect(adjudicationRequired).toEqual(expect.arrayContaining(["schema_version", "decisions", "candidate_id", "decision", "finding", "rejection_reason", "explanation"]));
@@ -731,6 +803,7 @@ describe("audit service", () => {
             selectedProviderName: "Google Vertex",
           },
           outputTransport: "json_schema",
+          temperature: 0,
         },
       });
       const serialized = JSON.stringify(evidence);

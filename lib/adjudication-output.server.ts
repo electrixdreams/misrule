@@ -2,7 +2,15 @@ import "server-only";
 
 import { z } from "zod";
 import { isCandidateId, type CanonicalCandidate } from "@/lib/candidate-output.server";
-import { modelFindingSchema, modelFindingTransportSchema, validateModelOutputSemantics, type ModelAuditOutput, type ModelFinding } from "@/lib/model-output.server";
+import {
+  modelFindingSchema,
+  modelFindingTransportFromCanonical,
+  modelFindingTransportSchema,
+  modelFindingFromTransport,
+  validateModelOutputSemantics,
+  type ModelAuditOutput,
+  type ModelFinding,
+} from "@/lib/model-output.server";
 import type { WorldPack } from "@/lib/world-pack";
 
 const candidateId = z.string().trim().min(1).max(96);
@@ -71,6 +79,7 @@ export const adjudicationOutputSchema = z
 export type RejectionReason = z.infer<typeof rejectionReasonSchema>;
 export type AdjudicationOutput = z.infer<typeof adjudicationOutputSchema>;
 export type AdjudicationDecision = AdjudicationOutput["decisions"][number];
+export type AdjudicationTransportOutput = z.infer<typeof adjudicationOutputTransportSchema>;
 
 export type AdjudicationValidationResult =
   | { ok: true; output: AdjudicationOutput; finalOutput: ModelAuditOutput; acceptedCount: number; rejectedCount: number; rejectionReasons: RejectionReason[] }
@@ -95,8 +104,46 @@ export function acceptedAdjudicationFromCandidates(candidates: CanonicalCandidat
   };
 }
 
+export function adjudicationTransportOutputFromCanonical(output: AdjudicationOutput): AdjudicationTransportOutput {
+  return {
+    schema_version: "adjudication-output/v1",
+    decisions: output.decisions.map((decision) => {
+      if (decision.decision === "reject") return decision;
+      return {
+        candidate_id: decision.candidate_id,
+        decision: "accept" as const,
+        finding: modelFindingTransportFromCanonical(decision.finding),
+      };
+    }),
+  };
+}
+
+export function acceptedAdjudicationTransportFromCandidates(candidates: CanonicalCandidate[]): AdjudicationTransportOutput {
+  return adjudicationTransportOutputFromCanonical(acceptedAdjudicationFromCandidates(candidates));
+}
+
 export function validateAdjudicationOutput(output: unknown, candidates: CanonicalCandidate[], pack: WorldPack, unresolvedQuestions: string[]): AdjudicationValidationResult {
-  const shape = adjudicationOutputSchema.safeParse(output);
+  const transport = adjudicationOutputTransportSchema.safeParse(output);
+  if (!transport.success) {
+    return { ok: false, issues: transport.error.issues.map((issue) => ({ code: issue.code, path: issue.path, message: issue.message })) };
+  }
+  const decisions: AdjudicationDecision[] = [];
+  const conversionIssues: unknown[] = [];
+  for (const [decisionIndex, decision] of transport.data.decisions.entries()) {
+    if (decision.decision === "reject") {
+      decisions.push(decision);
+      continue;
+    }
+    const converted = modelFindingFromTransport(decision.finding, decisionIndex, ["decisions", decisionIndex, "finding"]);
+    if (converted.ok) {
+      decisions.push({ candidate_id: decision.candidate_id, decision: "accept", finding: converted.finding });
+    } else {
+      conversionIssues.push(...converted.issues);
+    }
+  }
+  if (conversionIssues.length > 0) return { ok: false, issues: conversionIssues };
+
+  const shape = adjudicationOutputSchema.safeParse({ schema_version: "adjudication-output/v1", decisions });
   if (!shape.success) {
     return { ok: false, issues: shape.error.issues.map((issue) => ({ code: issue.code, path: issue.path, message: issue.message })) };
   }

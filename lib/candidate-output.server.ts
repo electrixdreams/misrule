@@ -1,7 +1,15 @@
 import "server-only";
 
 import { z } from "zod";
-import { modelFindingSchema, modelFindingTransportSchema, validateModelOutputSemantics, type ModelFinding } from "@/lib/model-output.server";
+import {
+  modelFindingSchema,
+  modelFindingTransportFromCanonical,
+  modelFindingTransportSchema,
+  modelFindingFromTransport,
+  validateModelOutputSemantics,
+  type ModelAuditOutput,
+  type ModelFinding,
+} from "@/lib/model-output.server";
 import type { WorldPack } from "@/lib/world-pack";
 
 const candidateId = z.string().trim().min(1).max(96);
@@ -40,7 +48,25 @@ export function assignCandidateIds(output: CandidateOutput): CanonicalCandidate[
 }
 
 export function validateCandidateOutput(output: unknown, pack: WorldPack): CandidateValidationResult {
-  const shape = candidateOutputSchema.safeParse(output);
+  const transport = candidateOutputTransportSchema.safeParse(output);
+  if (!transport.success) {
+    return { ok: false, issues: transport.error.issues.map((issue) => ({ code: issue.code, path: issue.path, message: issue.message })) };
+  }
+  const candidates: ModelFinding[] = [];
+  const conversionIssues: unknown[] = [];
+  for (const [index, finding] of transport.data.candidates.entries()) {
+    const converted = modelFindingFromTransport(finding, index);
+    if (converted.ok) candidates.push(converted.finding);
+    else conversionIssues.push(...converted.issues);
+  }
+  if (conversionIssues.length > 0) return { ok: false, issues: conversionIssues };
+
+  const canonical = {
+    schema_version: "candidate-output/v1" as const,
+    candidates,
+    unresolved_questions: transport.data.unresolved_questions,
+  };
+  const shape = candidateOutputSchema.safeParse(canonical);
   if (!shape.success) {
     return { ok: false, issues: shape.error.issues.map((issue) => ({ code: issue.code, path: issue.path, message: issue.message })) };
   }
@@ -52,10 +78,30 @@ export function validateCandidateOutput(output: unknown, pack: WorldPack): Candi
   return { ok: true, output: shape.data, candidates: assignCandidateIds(shape.data) };
 }
 
+export function candidateOutputFromTransport(output: unknown, pack: WorldPack): CandidateValidationResult {
+  return validateCandidateOutput(output, pack);
+}
+
+export function candidateTransportOutputFromModelOutput(output: ModelAuditOutput) {
+  return {
+    schema_version: "candidate-output/v1" as const,
+    candidates: output.findings.map(modelFindingTransportFromCanonical),
+    unresolved_questions: output.unresolved_questions,
+  };
+}
+
 export function candidateOutputFromModelOutput(output: unknown): unknown {
   if (!output || typeof output !== "object" || !("schema_version" in output)) return output;
   const modelLike = output as { schema_version?: unknown; findings?: unknown; unresolved_questions?: unknown };
   if (modelLike.schema_version !== "model-output/v1") return output;
+  const modelShape = z
+    .object({
+      schema_version: z.literal("model-output/v1"),
+      findings: z.array(modelFindingSchema),
+      unresolved_questions: z.array(z.string()),
+    })
+    .safeParse(modelLike);
+  if (modelShape.success) return candidateTransportOutputFromModelOutput(modelShape.data);
   return {
     schema_version: "candidate-output/v1",
     candidates: modelLike.findings,

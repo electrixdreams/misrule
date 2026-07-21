@@ -31,6 +31,13 @@ export type Finding = {
   supported_readings: SupportedReading[];
 };
 
+type TransportFinding = Omit<Finding, "supported_readings"> & {
+  supported_readings: {
+    contradiction_supported: { explanation: string | null };
+    contradiction_not_supported: { explanation: string | null };
+  };
+};
+
 function ruleStep(refId: string, text: string): RuleStep {
   return { kind: "rule", ref_id: refId, text };
 }
@@ -171,7 +178,7 @@ export const PA_WITH_ADDED_RULE: Finding = {
 
 export type CandidateOutputPayload = {
   schema_version: "candidate-output/v1";
-  candidates: Finding[];
+  candidates: TransportFinding[];
   unresolved_questions: string[];
 };
 
@@ -180,10 +187,29 @@ export type AdjudicationOutputPayload = {
   decisions: unknown[];
 };
 
+function transportFinding(finding: Finding): TransportFinding {
+  if (finding.kind === "contradiction") {
+    return {
+      ...finding,
+      supported_readings: {
+        contradiction_supported: { explanation: null },
+        contradiction_not_supported: { explanation: null },
+      },
+    };
+  }
+  return {
+    ...finding,
+    supported_readings: {
+      contradiction_supported: { explanation: finding.supported_readings.find((reading) => reading.outcome === "contradiction_supported")?.explanation ?? "" },
+      contradiction_not_supported: { explanation: finding.supported_readings.find((reading) => reading.outcome === "contradiction_not_supported")?.explanation ?? "" },
+    },
+  };
+}
+
 export function candidateOutput(candidates: Finding[], unresolvedQuestions: string[] = []): CandidateOutputPayload {
   return {
     schema_version: "candidate-output/v1",
-    candidates,
+    candidates: candidates.map(transportFinding),
     unresolved_questions: unresolvedQuestions,
   };
 }
@@ -193,7 +219,7 @@ export function adjudicationOutput(decisions: unknown[]): AdjudicationOutputPayl
 }
 
 export function accept(candidateId: string, finding: Finding): unknown {
-  return { candidate_id: candidateId, decision: "accept", finding };
+  return { candidate_id: candidateId, decision: "accept", finding: transportFinding(finding) };
 }
 
 export function reject(candidateId: string, reason: string, explanation: string): unknown {

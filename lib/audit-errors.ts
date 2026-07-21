@@ -19,6 +19,7 @@ export type ProviderFailureDiagnostic = {
   sanitizedProviderDetail: string | null;
   routerMetadata: SafeOpenRouterMetadata | null;
   latencyMs: number;
+  temperature: 0;
   promptVersion: string;
   schemaVersion: string;
 };
