@@ -544,7 +544,17 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
 @media (max-width: 1080px) {
   body { overflow: auto; }
   .misrule-shell { min-height: 100dvh; height: auto; }
-  .workspace { min-height: 100dvh; grid-template-columns: 1fr; grid-template-rows: minmax(31rem, 54vh) minmax(42rem, 70vh); }
+  /* Row 1 is `auto`, not a fixed/viewport-based minmax: the instrument
+     column's actual rendered height (route-board + heading + caption +
+     wind-key) regularly exceeds a fixed budget like 54vh, and a grid track
+     doesn't grow to fit overflowing content — it just lets the instrument
+     spill into row 2's space, where the opaque leaf-paper panel (higher
+     z-index) then paints over the tail of it, hiding the "Set the world in
+     motion" button entirely and making the audit un-runnable below
+     1080px. `auto` sizes the row to its content every time, so it can't
+     under-allocate again regardless of viewport height or future content
+     changes. */
+  .workspace { min-height: 100dvh; grid-template-columns: 1fr; grid-template-rows: auto minmax(42rem, 70vh); }
   .instrument-stage[data-quieted] { opacity: .86; }
   .instrument { width: min(24rem, 70vw); }
   .archive-leaf { min-height: 42rem; }
@@ -558,7 +568,7 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
   .fascia-seal > i { width: 1.9rem; }
   .fascia-status { flex-basis: auto; }
   .fascia-settings { flex-basis: auto; }
-  .workspace { grid-template-rows: minmax(28rem, 52vh) minmax(48rem, auto); padding-inline: .55rem; }
+  .workspace { grid-template-rows: auto minmax(48rem, auto); padding-inline: .55rem; }
   .instrument { width: min(20rem, 78vw); }
   .instrument-heading h1 { font-size: 2.35rem; }
   .instrument-heading p { font-size: .76rem; }
