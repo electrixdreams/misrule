@@ -1,0 +1,536 @@
+{
+  "schemaVersion": "world-pack/v1",
+  "packId": "starfall-accord-v1",
+  "packVersion": "1.0.0",
+  "title": "The Starfall Accord",
+  "description": "A three-volume space-fantasy canon of treaty change, fleet succession, choral-gate travel, navigator status, sovereign weapons, and relic custody.",
+  "disclosure": "Synthetic original World Pack created for Misrule.",
+  "world": {
+    "worldId": "world-starfall-accord",
+    "slug": "starfall-accord",
+    "title": "The Starfall Accord",
+    "premise": "Seven migratory Crown Fleets cross interstellar distances through paired living choral gates. Each passage requires an active Fleet Crown and two bonded navigators contributing distinct unspent asterline channels. After the Fleet War, the revised Starfall Accord takes effect at noon on Day 223, replacing old succession customs, limiting sovereign weapons, standardizing bond severance, and preserving narrow acting-watch powers. Later records test those rules through a contested Mothwake succession, a two-hop passage at a relay with no reset facility, an expedition whose governing authority is supported by two incompatible valid instruments, and public claims about a singular weapon relic.",
+    "summary": "A serialized postwar fleet canon where legal effective dates, command status, gate mechanics, and archival identity determine what could lawfully or physically occur.",
+    "tags": [
+      "space-fantasy",
+      "serialized-canon",
+      "treaty-law",
+      "succession",
+      "gate-travel",
+      "relic-custody"
+    ]
+  },
+  "books": [
+    {
+      "bookId": "SA-B01",
+      "worldId": "world-starfall-accord",
+      "slug": "the-broken-armada",
+      "title": "The Broken Armada",
+      "sourceLabel": "Broken Armada Archive",
+      "ordinal": 0,
+      "summary": "War chronicles, Crown ledgers, navigator records, gate reports, and relic-custody entries from the final phase of the Fleet War."
+    },
+    {
+      "bookId": "SA-B02",
+      "worldId": "world-starfall-accord",
+      "slug": "treaty-of-cinders",
+      "title": "Treaty of Cinders",
+      "sourceLabel": "Cinder Hall Record",
+      "ordinal": 1,
+      "summary": "The revised Accord, ratification record, armistice incidents, command logs, and weapons proceedings that establish the postwar legal transition."
+    },
+    {
+      "bookId": "SA-B03",
+      "worldId": "world-starfall-accord",
+      "slug": "the-crownless-moon",
+      "title": "The Crownless Moon",
+      "sourceLabel": "Crownless Expedition Archive",
+      "ordinal": 2,
+      "summary": "Postwar succession records, expedition instruments, broadcasts, gate logs, testimony, and custody audits surrounding the final Mothwake voyage."
+    }
+  ],
+  "rules": [
+    {
+      "ruleId": "SA-R01",
+      "worldId": "world-starfall-accord",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-starfall-accord"
+      },
+      "type": "fact",
+      "title": "Fleet Crown Authority",
+      "text": "Each Crown Fleet has one authentic active Fleet Crown, and a vessel operates under a Fleet Crown only while that Crown is aboard and a valid command or departure record enters it as the vessel's governing authority.",
+      "displayOrder": 1
+    },
+    {
+      "ruleId": "SA-R02",
+      "worldId": "world-starfall-accord",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-starfall-accord"
+      },
+      "type": "conditional",
+      "title": "Choral-Gate Passage Conditions",
+      "text": "A choral-gate passage is valid only when an active Fleet Crown is aboard, two currently bonded navigators each contribute a distinct active asterline channel tuned to the requested route, both contributed channels are unspent, and the destination gate returns an answering tone within ninety seconds.",
+      "displayOrder": 2
+    },
+    {
+      "ruleId": "SA-R03",
+      "worldId": "world-starfall-accord",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-starfall-accord"
+      },
+      "type": "temporal",
+      "title": "Global Active-Channel Exhaustion",
+      "text": "After a navigator contributes an active asterline channel to any choral-gate passage, that navigator's active channel is mute for every route until the navigator completes six continuous hours at a fixed choir harbor while the navigator's bonded Fleet Crown is present.",
+      "displayOrder": 3
+    },
+    {
+      "ruleId": "SA-R04",
+      "worldId": "world-starfall-accord",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-starfall-accord"
+      },
+      "type": "fact",
+      "title": "Hushpoint Cannot Reset Channels",
+      "text": "Hushpoint Relay has no fixed choir harbor or calibration cradle and cannot reset a muted active asterline channel.",
+      "displayOrder": 4
+    },
+    {
+      "ruleId": "SA-R05",
+      "worldId": "world-starfall-accord",
+      "scope": {
+        "kind": "book",
+        "bookId": "SA-B01"
+      },
+      "type": "conditional",
+      "title": "Mothwake Oath-Heir Succession",
+      "text": "During The Broken Armada, Mothwake command passes automatically on a Crown-Bearer's death only to the living person named in the Fleet Crown's latest sealed oath-heir entry; kinship alone has no succession effect.",
+      "displayOrder": 5
+    },
+    {
+      "ruleId": "SA-R06",
+      "worldId": "world-starfall-accord",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-starfall-accord"
+      },
+      "type": "conditional",
+      "title": "Five-Seal Permanent Succession",
+      "text": "For every permanent Fleet Crown vacancy occurring on or after Day 223 at 12:00, command is valid only when at least five of the seven fleet delegates seal the candidate's confirmation and the vacant Fleet Crown records assent; familial descent and prior oath-heir entries have no automatic effect.",
+      "displayOrder": 6
+    },
+    {
+      "ruleId": "SA-R07",
+      "worldId": "world-starfall-accord",
+      "scope": {
+        "kind": "book",
+        "bookId": "SA-B02"
+      },
+      "type": "temporal",
+      "title": "Weapon Article Before Ratification",
+      "text": "Within Treaty of Cinders, the sovereign-weapon restriction has no legal force before the fifth fleet ratification is deposited at 12:00 on Day 223.",
+      "displayOrder": 7
+    },
+    {
+      "ruleId": "SA-R08",
+      "worldId": "world-starfall-accord",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-starfall-accord"
+      },
+      "type": "fact",
+      "title": "Sovereign Weapon Classification",
+      "text": "A sovereign weapon is a functional system installed on a Crown Fleet vessel that can independently breach an inhabited hull or habitat; inert ceremonial shells and industrial charges carried by licensed non-sovereign vessels do not qualify.",
+      "displayOrder": 8
+    },
+    {
+      "ruleId": "SA-R09",
+      "worldId": "world-starfall-accord",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-starfall-accord"
+      },
+      "type": "conditional",
+      "title": "Unanimous Pre-Recorded Weapon Writ",
+      "text": "On or after Day 223 at 12:00, a sovereign weapon may be activated only after an emergency writ bearing all seven Fleet Crown seals has been recorded; authorization attempted after activation does not satisfy this rule.",
+      "displayOrder": 9
+    },
+    {
+      "ruleId": "SA-R10",
+      "worldId": "world-starfall-accord",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-starfall-accord"
+      },
+      "type": "conditional",
+      "title": "Three-Part Navigator Severance",
+      "text": "On or after Day 223 at 12:00, a navigator remains bonded until the bonded Fleet Crown issues a release, the navigator records assent, and an Accord registrar enters a countersignature.",
+      "displayOrder": 10
+    },
+    {
+      "ruleId": "SA-R11",
+      "worldId": "world-starfall-accord",
+      "scope": {
+        "kind": "book",
+        "bookId": "SA-B03"
+      },
+      "type": "constraint",
+      "title": "Cross-Crown Command Restriction",
+      "text": "During The Crownless Moon, a navigator bonded to one Fleet Crown may not take permanent or acting command of a vessel while that vessel is operating under a different Fleet Crown; a Crownless vessel operating under no Fleet Crown is outside this restriction.",
+      "displayOrder": 11
+    },
+    {
+      "ruleId": "SA-R12",
+      "worldId": "world-starfall-accord",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-starfall-accord"
+      },
+      "type": "constraint",
+      "title": "Limited Acting Watch",
+      "text": "An acting watch officer may issue docking, course, and immediate defensive-maneuver orders during a Crown-Bearer's incapacity without becoming permanent Crown commander, but may not alter succession, cast a Crown seal, or activate a sovereign weapon.",
+      "displayOrder": 12
+    },
+    {
+      "ruleId": "SA-R13",
+      "worldId": "world-starfall-accord",
+      "scope": {
+        "kind": "world",
+        "worldId": "world-starfall-accord"
+      },
+      "type": "fact",
+      "title": "Resonance Custody Standard",
+      "text": "An authentic Fleet Crown or sovereign-weapon core remains in lawful custody only when its physical vault entry and unique resonance stamp agree; an unstamped procession shell cannot replace or relocate the authentic relic.",
+      "displayOrder": 13
+    }
+  ],
+  "spans": [
+    {
+      "spanId": "SA-S01",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B01",
+      "source": {
+        "label": "Fleet Chronicle of the Broken Armada",
+        "scene": "Withdrawal from Iscarion Reach",
+        "chapter": "War Log 38"
+      },
+      "text": "The seven Crown Fleets withdrew separately from the torn basin at Iscarion: Mothwake with two habitation rings dark, Cinderwake towing its pressure arrays, Lattice Dawn tending the injured gate, Pale Orchard guarding its seed barges, Ternion counting navigators, Hollow Chorus carrying the wounded, and Red Aster ranging ahead. They remained seven polities, but none could migrate without another fleet's routes, harbors, or stores.",
+      "displayOrder": 1
+    },
+    {
+      "spanId": "SA-S02",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B01",
+      "source": {
+        "label": "Mothwake Crown Command Ledger",
+        "scene": "Succession archive review",
+        "chapter": "Ledger Leaf 12"
+      },
+      "text": "Crown-Bearer Orun Caith remains in command. The latest sealed oath-heir entry names Quartermaster Tamer Voss. The kin register lists Seren Caith as daughter of the bearer, but the charter clerk has written beside it: kinship is not a command designation and carries no succession force without a sealed oath-heir entry.",
+      "displayOrder": 2
+    },
+    {
+      "spanId": "SA-S03",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B01",
+      "source": {
+        "label": "Cinderwake Navigator Registry",
+        "scene": "Bond calibration certification",
+        "chapter": "Registry Coil 7"
+      },
+      "text": "Navigator Sena Rhyll answered the Cinderwake Crown's calibration tone across all licensed channels. The Crown archive accepted the reciprocal bond and entered her medical tolerances, route permissions, and service duty. No transfer or release instrument was filed with this certification.",
+      "displayOrder": 3
+    },
+    {
+      "spanId": "SA-S04",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B01",
+      "source": {
+        "label": "Ternion Navigator After-Action Record",
+        "scene": "Lattice Dawn to Pale Orchard passage",
+        "chapter": "Training Passage 44"
+      },
+      "text": "The Lattice Dawn Crown was aboard when navigators Halen Tor and Miri Cale tuned separate channels to the Orchard route. The destination answered after fifty-two seconds, and the vessel crossed. Both channel lamps then changed from green to black across the route board. The crew berthed at Pale Orchard's fixed choir harbor for six uninterrupted hours with the Crown present; only after the cradle cycle did both lamps return to green for service.",
+      "displayOrder": 4
+    },
+    {
+      "spanId": "SA-S05",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B01",
+      "source": {
+        "label": "Crown Guard Relic Custody Ledger",
+        "scene": "Resonance Vault Lumen consolidation",
+        "chapter": "Vault Entry L-184"
+      },
+      "text": "Resonance Vault Lumen received the authentic Sunspike core under stamp MOTH-SUN-01. Two hollow procession shells, PS-2 and PS-3, were entered on a separate shelf. The shells contain no chamber, active conduit, or resonance identity and may leave the vault for rites without changing the custody location of the stamped core.",
+      "displayOrder": 5
+    },
+    {
+      "spanId": "SA-S06",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B02",
+      "source": {
+        "label": "Treaty of Cinders — Promulgated Text",
+        "scene": "Succession article and ratification certificate",
+        "chapter": "Articles 4 and 19"
+      },
+      "text": "Permanent vacancies arising after entry into force shall be filled only upon five delegate seals and the vacant Crown's assent. Blood descent and archived oath-heir entries confer no automatic authority. The attached certificate records Ternion's fifth ratification at 12:00 on Day 223 and declares the revised articles operative from that minute.",
+      "displayOrder": 6
+    },
+    {
+      "spanId": "SA-S07",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B02",
+      "source": {
+        "label": "Treaty of Cinders — Navigator Article",
+        "scene": "Uniform bond release procedure",
+        "chapter": "Article 9"
+      },
+      "text": "A post-ratification navigator bond continues until the bonded Crown records release, the navigator records assent, and an Accord registrar enters a countersignature. The registrar's completed entry closes the bond; later copying or transmission to another archive does not substitute for any of the three acts.",
+      "displayOrder": 7
+    },
+    {
+      "spanId": "SA-S08",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B02",
+      "source": {
+        "label": "Treaty of Cinders — Weapons Article",
+        "scene": "Definitions and emergency authority",
+        "chapter": "Article 12"
+      },
+      "text": "A sovereign weapon is a working system installed upon a Crown Fleet vessel and independently capable of breaching an inhabited hull or habitat. No such system may be activated after this Accord enters force unless an emergency writ carrying every Fleet Crown seal has already been recorded. Procession shells and licensed non-sovereign mining charges are excluded from this definition.",
+      "displayOrder": 8
+    },
+    {
+      "spanId": "SA-S09",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B02",
+      "source": {
+        "label": "Brass Horizon Ship Log",
+        "scene": "Cinder Hall approach-lane clearance",
+        "chapter": "Day 211"
+      },
+      "text": "09:40 — The registered forward lance fired once into the uninhabited debris mass crossing the Cinder Hall approach. Fragments cleared the convoy lane by 09:43. The weapons officer appended the date twice because the revised articles had been signed but the ratification board still showed four deposited fleet seals.",
+      "displayOrder": 9
+    },
+    {
+      "spanId": "SA-S10",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B02",
+      "source": {
+        "label": "Cinder Hall Diplomatic Minute",
+        "scene": "Objection after the approach-lane firing",
+        "chapter": "Session 31"
+      },
+      "text": "The delegates censured Cinderwake's Day 211 discharge as reckless. Registrar Eda Rhun read the deposit board into the record: four ratifications received, fifth not received, Article Twelve not yet operative. The chair ruled that no charge could be entered under that article for the morning's firing, without deciding whether any separate armistice duty had been breached.",
+      "displayOrder": 10
+    },
+    {
+      "spanId": "SA-S11",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B02",
+      "source": {
+        "label": "Quiet Measure Command Ledger",
+        "scene": "Medical incapacity watch",
+        "chapter": "Day 214"
+      },
+      "text": "With the Crown-Bearer sedated, Watch Officer Vara Olt assumed acting watch. She ordered the port clamps released, corrected course seven degrees, and rolled the vessel to shield the infirmary from drifting wreckage. The title field remained unchanged, no Crown seal was cast, and the armory circuit stayed locked throughout the watch.",
+      "displayOrder": 11
+    },
+    {
+      "spanId": "SA-S12",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B02",
+      "source": {
+        "label": "Cinderwake Command Armory Ledger",
+        "scene": "Heliograph Lance registration",
+        "chapter": "Registry H-3"
+      },
+      "text": "The Heliograph Lance is installed on the Cinderwake flagship and linked to its Crown command bus. Bench and range trials certify that its focused pressure line can rupture an occupied convoy hull at stand-off distance without assistance from the target, a gate, or a second vessel. Core status: active and serviceable.",
+      "displayOrder": 12
+    },
+    {
+      "spanId": "SA-S13",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B02",
+      "source": {
+        "label": "Cinderwake Flagship Ship Log",
+        "scene": "Ember Quay convoy confrontation",
+        "chapter": "Day 241"
+      },
+      "text": "Day 241, 16:39 — Captain Tessa Sorn ordered the Heliograph Lance armed. Day 241, 16:40 — The lance activated and discharged against the inhabited convoy ship Laurel Minor. The writ field was blank at arming and remained blank at discharge; the bridge received no deposit code before the firing sequence completed.",
+      "displayOrder": 13
+    },
+    {
+      "spanId": "SA-S14",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B02",
+      "source": {
+        "label": "Emergency Crown Assembly Minute",
+        "scene": "Vote following the Heliograph discharge",
+        "chapter": "Day 241"
+      },
+      "text": "Day 241, 16:52 — The Assembly considered a writ for the action already taken at Day 241, 16:40. Six Crown seals were offered; Red Aster withheld the seventh. Registrar Eda Rhun reported no earlier writ in the deposit register. The chair closed the vote at six to one and ordered the late instrument preserved with the weapons inquiry.",
+      "displayOrder": 14
+    },
+    {
+      "spanId": "SA-S15",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B03",
+      "source": {
+        "label": "Mothwake Public Broadcast",
+        "scene": "Mourning address",
+        "chapter": "Day 276"
+      },
+      "text": "Seren Caith stood beneath the dark command halo and announced Orun Caith's death. 'Mothwake cannot drift leaderless. By the Caith line, I have taken permanent command as Crown-Bearer, and my orders carry the full authority of the fleet from this hour.' The transmission did not describe her role as temporary stewardship or acting watch.",
+      "displayOrder": 15
+    },
+    {
+      "spanId": "SA-S16",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B03",
+      "source": {
+        "label": "Mothwake Command Ledger",
+        "scene": "Crown vacancy and proposed installation",
+        "chapter": "Day 276"
+      },
+      "text": "Day 276, 06:18 — Crown-Bearer Orun Caith deceased; permanent command seat vacant. Day 276, 08:12 — Seren Caith entered as candidate for permanent installation. The Mothwake Crown recorded assent to her candidacy. Delegate confirmation remains a separate required field and was forwarded to the Crown Assembly.",
+      "displayOrder": 16
+    },
+    {
+      "spanId": "SA-S17",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B03",
+      "source": {
+        "label": "Crown Assembly Confirmation Ledger",
+        "scene": "Mothwake succession tally",
+        "chapter": "Day 276"
+      },
+      "text": "Seals received for Seren Caith: Mothwake, Cinderwake, Pale Orchard, Hollow Chorus. Seals withheld: Lattice Dawn, Ternion, Red Aster. Total delegate seals: four of seven. Mothwake Crown assent: recorded separately. The clerk closed the tally with no fifth delegate seal pending.",
+      "displayOrder": 17
+    },
+    {
+      "spanId": "SA-S18",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B03",
+      "source": {
+        "label": "Cinderwake Navigator Status Extract",
+        "scene": "Expedition-day bond verification",
+        "chapter": "Day 281"
+      },
+      "text": "At 14:18 the Cinderwake Crown returned Sena Rhyll's status as BONDED — ACTIVE. Registrar Eda Rhun certified that no release, assent, or countersignature package was open or awaiting entry. The status remained unchanged in the next archive replication at 15:00.",
+      "displayOrder": 18
+    },
+    {
+      "spanId": "SA-S19",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B03",
+      "source": {
+        "label": "Mothwake Departure Manifest",
+        "scene": "Horizon Thread authority assignment",
+        "chapter": "Day 281"
+      },
+      "text": "The Horizon Thread is entered as a Mothwake expedition vessel. The active Mothwake Fleet Crown is aboard in the command halo, and the governing-authority field reads MOTHWAKE from release at Ember Quay through return to fleet custody. Captain Aven Holt signed the manifest before departure.",
+      "displayOrder": 19
+    },
+    {
+      "spanId": "SA-S20",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B03",
+      "source": {
+        "label": "Crownless Moon Expedition Compact",
+        "scene": "Independent-status instrument",
+        "chapter": "Day 280"
+      },
+      "text": "Upon clearing Ember Quay's outer marker, the Horizon Thread shall enter Crownless expedition status for the duration of the survey. No Fleet Crown shall govern shipboard command during that interval. Any Crown carried for gate passage shall remain a sealed credential rather than the vessel's command authority. The compact bears the expedition council's valid seal and predates departure.",
+      "displayOrder": 20
+    },
+    {
+      "spanId": "SA-S21",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B03",
+      "source": {
+        "label": "Expedition Inquiry Testimony",
+        "scene": "Command transfer after departure",
+        "chapter": "Day 281"
+      },
+      "text": "Captain Aven Holt collapsed three minutes after the Horizon Thread cleared the outer marker at 14:17. At 14:20 he ordered Sena Rhyll to take acting command, and she did. The bridge received no status acknowledgment from the council before the transfer; the departure packet still carried both the Mothwake manifest and the Crownless compact.",
+      "displayOrder": 21
+    },
+    {
+      "spanId": "SA-S22",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B03",
+      "source": {
+        "label": "Horizon Thread Crew and Channel Manifest",
+        "scene": "Final gate complement",
+        "chapter": "Day 284"
+      },
+      "text": "The active Mothwake Crown is listed aboard for the Ember Quay–Hushpoint–Crownless passage. Daro Valis and Juno Marek are the only licensed navigators: Valis carries active channel DV-3 and Marek carries active channel JM-8. No relief navigator, calibration tender, or replacement channel joins at Hushpoint.",
+      "displayOrder": 22
+    },
+    {
+      "spanId": "SA-S23",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B03",
+      "source": {
+        "label": "Ember Quay Choral-Gate Log",
+        "scene": "First opening toward Hushpoint",
+        "chapter": "Day 284"
+      },
+      "text": "05:10:02 — Crown MOTH-A confirmed aboard Horizon Thread. Daro Valis tuned unspent channel DV-3 to the Hushpoint lead phrase; Juno Marek tuned unspent channel JM-8 to the answer phrase. Hushpoint returned tone after forty-four seconds. Passage opened at 05:10:46. On closure, the Crown channel ledger marked DV-3 and JM-8 MUTE — ALL ROUTES.",
+      "displayOrder": 23
+    },
+    {
+      "spanId": "SA-S24",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B03",
+      "source": {
+        "label": "Hushpoint Relay Operations Survey",
+        "scene": "Arrival and service status",
+        "chapter": "Day 284"
+      },
+      "text": "Horizon Thread arrived at 05:12. Hushpoint's answering organ was healthy, but the relay has no fixed choir harbor, no calibration cradle, and no resident choirwright. The vessel neither docked nor entered a stillness cycle. No reset event, calibration tender, or replacement navigator appears in the relay record before its next call at 05:21.",
+      "displayOrder": 24
+    },
+    {
+      "spanId": "SA-S25",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B03",
+      "source": {
+        "label": "Hushpoint Choral-Gate Log",
+        "scene": "Second opening toward Crownless Moon",
+        "chapter": "Day 284"
+      },
+      "text": "05:21:03 — Horizon Thread requested the Crownless route with Crown MOTH-A aboard. Daro Valis supplied channel DV-3 as lead; Juno Marek supplied channel JM-8 as answer. Crownless returned tone after thirty-seven seconds, and Hushpoint recorded passage open at 05:21:40. No other navigator identity or channel number is present in the opening record.",
+      "displayOrder": 25
+    },
+    {
+      "spanId": "SA-S26",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B03",
+      "source": {
+        "label": "Mothwake Public Broadcast",
+        "scene": "Crownless Moon victory ceremony",
+        "chapter": "Day 286"
+      },
+      "text": "Attendants lifted a black-gold object from the command dais while Seren Caith declared, 'The Sunspike rises with Mothwake again.' The broadcast showed no firing chamber, active conduit, resonance response, or activation sequence. The object left the dais after the anthem under procession guard.",
+      "displayOrder": 26
+    },
+    {
+      "spanId": "SA-S27",
+      "worldId": "world-starfall-accord",
+      "bookId": "SA-B03",
+      "source": {
+        "label": "Crown Guard Relic Custody Audit",
+        "scene": "Resonance Vault Lumen verification",
+        "chapter": "Day 286"
+      },
+      "text": "Stamp MOTH-SUN-01 answered continuously inside Resonance Vault Lumen throughout the ceremony. The authentic Sunspike core remained sealed in bay four. Image comparison identified the broadcast object as hollow procession shell PS-2, signed out for the rite and returned without a resonance stamp, chamber, or active conduit.",
+      "displayOrder": 27
+    }
+  ]
+}

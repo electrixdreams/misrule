@@ -1,0 +1,97 @@
+{
+  "schemaVersion": "ground-truth/v1",
+  "fixtureId": "neon-reliquary-v1",
+  "fixtureVersion": "1.0.0",
+  "cases": [
+    {
+      "caseId": "NR-C01",
+      "expected": "contradiction",
+      "ruleIds": [
+        "NR-R08",
+        "NR-R09"
+      ],
+      "spanIds": [
+        "NR-S11",
+        "NR-S16",
+        "NR-S25"
+      ],
+      "multiHop": true
+    },
+    {
+      "caseId": "NR-C02",
+      "expected": "contradiction",
+      "ruleIds": [
+        "NR-R07"
+      ],
+      "spanIds": [
+        "NR-S13",
+        "NR-S23",
+        "NR-S24"
+      ],
+      "multiHop": true
+    },
+    {
+      "caseId": "NR-C03",
+      "expected": "contradiction",
+      "ruleIds": [
+        "NR-R12"
+      ],
+      "spanIds": [
+        "NR-S12",
+        "NR-S26"
+      ],
+      "multiHop": false
+    },
+    {
+      "caseId": "NR-A01",
+      "expected": "ambiguity",
+      "ruleIds": [
+        "NR-R11"
+      ],
+      "spanIds": [
+        "NR-S17",
+        "NR-S18",
+        "NR-S27"
+      ],
+      "multiHop": true,
+      "missingFact": "Whether envelope E-3908 was countersigned before Bellwether-3 resumed service at 23:04:12."
+    },
+    {
+      "caseId": "NR-N01",
+      "expected": "none",
+      "ruleIds": [
+        "NR-R03"
+      ],
+      "spanIds": [
+        "NR-S10",
+        "NR-S19"
+      ],
+      "multiHop": true
+    },
+    {
+      "caseId": "NR-N02",
+      "expected": "none",
+      "ruleIds": [
+        "NR-R14"
+      ],
+      "spanIds": [
+        "NR-S13",
+        "NR-S20"
+      ],
+      "multiHop": false
+    },
+    {
+      "caseId": "NR-N03",
+      "expected": "none",
+      "ruleIds": [
+        "NR-R05",
+        "NR-R13"
+      ],
+      "spanIds": [
+        "NR-S21",
+        "NR-S22"
+      ],
+      "multiHop": true
+    }
+  ]
+}

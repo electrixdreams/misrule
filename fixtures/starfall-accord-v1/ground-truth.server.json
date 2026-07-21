@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "ground-truth/v1",
+  "fixtureId": "starfall-accord-v1",
+  "fixtureVersion": "1.0.0",
+  "cases": [
+    {
+      "caseId": "SA-C01",
+      "expected": "contradiction",
+      "ruleIds": [
+        "SA-R06"
+      ],
+      "spanIds": [
+        "SA-S15",
+        "SA-S16",
+        "SA-S17"
+      ],
+      "multiHop": true
+    },
+    {
+      "caseId": "SA-C02",
+      "expected": "contradiction",
+      "ruleIds": [
+        "SA-R02",
+        "SA-R03",
+        "SA-R04"
+      ],
+      "spanIds": [
+        "SA-S22",
+        "SA-S23",
+        "SA-S24",
+        "SA-S25"
+      ],
+      "multiHop": true
+    },
+    {
+      "caseId": "SA-C03",
+      "expected": "contradiction",
+      "ruleIds": [
+        "SA-R08",
+        "SA-R09"
+      ],
+      "spanIds": [
+        "SA-S12",
+        "SA-S13",
+        "SA-S14"
+      ],
+      "multiHop": true
+    },
+    {
+      "caseId": "SA-C04",
+      "expected": "ambiguity",
+      "ruleIds": [
+        "SA-R11"
+      ],
+      "spanIds": [
+        "SA-S18",
+        "SA-S19",
+        "SA-S20",
+        "SA-S21"
+      ],
+      "multiHop": true,
+      "missingFact": "Whether the Horizon Thread was still operating under the Mothwake Fleet Crown when Sena Rhyll assumed acting command."
+    },
+    {
+      "caseId": "SA-C05",
+      "expected": "none",
+      "ruleIds": [
+        "SA-R07"
+      ],
+      "spanIds": [
+        "SA-S09",
+        "SA-S10"
+      ],
+      "multiHop": false
+    },
+    {
+      "caseId": "SA-C06",
+      "expected": "none",
+      "ruleIds": [
+        "SA-R12"
+      ],
+      "spanIds": [
+        "SA-S11"
+      ],
+      "multiHop": false
+    },
+    {
+      "caseId": "SA-C07",
+      "expected": "none",
+      "ruleIds": [
+        "SA-R08",
+        "SA-R13"
+      ],
+      "spanIds": [
+        "SA-S26",
+        "SA-S27"
+      ],
+      "multiHop": true
+    }
+  ]
+}
